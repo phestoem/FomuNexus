@@ -1,0 +1,381 @@
+.page {
+  flex: 1;
+  padding: 2.5rem 1rem 4rem;
+  background: var(--fn-bg, #f4f4f5);
+  color: var(--fn-text, #09090b);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.container {
+  width: 100%;
+  max-width: 56rem;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 2rem;
+}
+
+.backLink {
+  display: inline-block;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--fn-text-muted, #52525b);
+  text-decoration: none;
+}
+
+.backLink:hover {
+  color: var(--fn-text, #09090b);
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #52525b;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 2.5rem);
+  font-weight: 800;
+  line-height: 1.15;
+  color: #09090b;
+}
+
+.subtitle {
+  margin: 0.75rem 0 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #3f3f46;
+}
+
+.meta {
+  margin-top: 0.75rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #52525b;
+}
+
+.card {
+  background: #ffffff;
+  border: 2px solid #e4e4e7;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 12px 32px rgba(24, 24, 27, 0.08);
+}
+
+.queryForm {
+  display: grid;
+  gap: 1rem;
+}
+
+.sampleQueries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sampleQueryButton {
+  padding: 0.5rem 0.875rem;
+  border: 2px solid var(--fn-border, #e4e4e7);
+  border-radius: 9999px;
+  background: var(--fn-surface-muted, #fafafa);
+  color: var(--fn-text-secondary, #3f3f46);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sampleQueryButton:hover:not(:disabled) {
+  border-color: var(--fn-border-strong, #d4d4d8);
+  background: #ffffff;
+}
+
+.sampleQueryButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.queryInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1rem 1.125rem;
+  border: 2px solid #d4d4d8;
+  border-radius: 0.875rem;
+  background: #ffffff;
+  color: #09090b;
+  font-size: 1rem;
+  outline: none;
+}
+
+.queryInput:focus {
+  border-color: #18181b;
+  box-shadow: 0 0 0 4px rgba(24, 24, 27, 0.08);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 9rem;
+  padding: 0.875rem 1.5rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: #18181b;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  background: #3f3f46;
+}
+
+.button:disabled {
+  background: #a1a1aa;
+  cursor: not-allowed;
+}
+
+.error {
+  margin-top: 1rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.notice {
+  margin-top: 1rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.loadingCard {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding: 1rem 1.125rem;
+  border-radius: 0.875rem;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #bfdbfe;
+  border-top-color: #1d4ed8;
+  border-radius: 9999px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.analysisSection {
+  margin-top: 1.5rem;
+}
+
+.sectionTitle {
+  margin: 0 0 1rem;
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: #09090b;
+}
+
+.markdown {
+  padding: 1.25rem;
+  border: 2px solid #e4e4e7;
+  border-radius: 0.875rem;
+  background: #fafafa;
+  color: #18181b;
+  line-height: 1.7;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  margin: 1.25rem 0 0.75rem;
+  line-height: 1.3;
+  color: #09090b;
+}
+
+.markdown h1:first-child,
+.markdown h2:first-child,
+.markdown h3:first-child {
+  margin-top: 0;
+}
+
+.markdown p {
+  margin: 0.75rem 0;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 0.75rem 0;
+  padding-left: 1.25rem;
+}
+
+.markdown li {
+  margin: 0.35rem 0;
+}
+
+.markdown strong {
+  color: #09090b;
+}
+
+.submissionsSection {
+  margin-top: 2rem;
+}
+
+.submissionsSectionHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.toggleRawButton {
+  padding: 0.5rem 0.875rem;
+  border: 2px solid var(--fn-border-strong, #d4d4d8);
+  border-radius: 0.5rem;
+  background: #ffffff;
+  color: var(--fn-text, #09090b);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.toggleRawButton:hover {
+  background: var(--fn-surface-muted, #fafafa);
+}
+
+.submissionsList {
+  display: grid;
+  gap: 1rem;
+}
+
+.submissionItem {
+  padding: 1rem;
+  border: 2px solid #e4e4e7;
+  border-radius: 0.875rem;
+  background: #ffffff;
+}
+
+.submissionHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.875rem;
+}
+
+.submissionTitle {
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: var(--fn-text, #09090b);
+}
+
+.submissionDate {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--fn-text-muted, #52525b);
+}
+
+.submissionEmpty {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--fn-text-muted, #52525b);
+}
+
+.submissionFields {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.submissionField {
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--fn-border, #e4e4e7);
+  border-radius: 0.625rem;
+  background: var(--fn-surface-muted, #fafafa);
+}
+
+.submissionFieldLabel {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fn-text-muted, #52525b);
+}
+
+.submissionFieldValue {
+  margin: 0.35rem 0 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--fn-text, #09090b);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.payloadBox {
+  max-height: 14rem;
+  overflow: auto;
+  padding: 0.875rem;
+  border-radius: 0.625rem;
+  background: #18181b;
+  color: #f4f4f5;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.emptyState {
+  padding: 1rem 1.125rem;
+  border: 2px dashed #d4d4d8;
+  border-radius: 0.875rem;
+  background: #fafafa;
+  color: #52525b;
+  font-size: 0.9375rem;
+}

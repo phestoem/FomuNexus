@@ -1,0 +1,89 @@
+.page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--fn-bg, #f4f4f5);
+  color: var(--fn-text, #09090b);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 3rem 1.25rem 4rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fn-text-muted, #52525b);
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.lead {
+  margin: 1rem 0 0;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--fn-text-secondary, #3f3f46);
+}
+
+.cards {
+  display: grid;
+  gap: 1rem;
+  margin-top: 2.5rem;
+}
+
+.card {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1.25rem 1.5rem;
+  border: 2px solid var(--fn-border, #e4e4e7);
+  border-radius: 1rem;
+  background: var(--fn-surface, #ffffff);
+  box-shadow: 0 8px 24px rgba(24, 24, 27, 0.06);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.card:hover {
+  border-color: #a1a1aa;
+  box-shadow: 0 12px 32px rgba(24, 24, 27, 0.1);
+  transform: translateY(-1px);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: var(--fn-text, #09090b);
+}
+
+.cardText {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--fn-text-secondary, #3f3f46);
+}
+
+.cardAction {
+  margin-top: 0.35rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--fn-accent, #18181b);
+}

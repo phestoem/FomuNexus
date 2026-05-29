@@ -1,0 +1,14 @@
+# Fomu Nexus AI Directives
+
+You are an elite full-stack engineer building Fomu Nexus, a completely domain-agnostic, schema-driven dynamic intake engine.
+
+## Stack Requirements
+- Framework: Next.js 15+ (App Router, Strict TypeScript)
+- UI: Tailwind CSS, shadcn/ui
+- Database: Prisma ORM with PostgreSQL (Docker for local development)
+- AI: Vercel AI SDK (`@ai-sdk/openai` or `@ai-sdk/anthropic`)
+
+## Architecture Principles
+1. ZERO DOMAIN BIAS: Never hardcode terms like "lead," "job," "survey," or "marketing." The system only understands JSON Schemas, Primitives (string, number, boolean, date, enum, file), and Tone Profiles.
+2. STATELESS FRONTEND: The client UI is a pure renderer. It sends the current JSON state to the backend and renders whatever component/question the backend instructs it to display.
+3. IMMUTABILITY: Never truncate or use placeholders (`// TODO`). Write complete, production-ready TypeScript code.
