@@ -175,6 +175,28 @@ function enforceRequiredFieldIntegrity(
     };
   }
 
+  const illegalAgentSkips = outcome.agentSkippedFields.filter((key) =>
+    requiredKeys.has(key),
+  );
+  for (const [key, value] of Object.entries(outcome.extractedData)) {
+    if (requiredKeys.has(key) && isAgentSkippedFieldValue(value)) {
+      illegalAgentSkips.push(key);
+    }
+  }
+
+  if (illegalAgentSkips.length > 0) {
+    const blockedKey = illegalAgentSkips[0];
+    return {
+      extractedData: {},
+      skippedFields: [],
+      agentSkippedFields: [],
+      validationError: buildRequiredFieldValidationError(
+        blockedKey,
+        missingFieldMap.get(blockedKey),
+      ),
+    };
+  }
+
   const sanitizedExtractedData: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(outcome.extractedData)) {
     if (isAgentSkippedFieldValue(value)) {
@@ -470,9 +492,9 @@ async function extractDataFromUserInput(params: {
       "Review the data stored in `capturedData`. Evaluate the remaining missing fields in the `targetSchema`.",
       "- If the context of the user's previous answers makes a remaining missing field completely irrelevant, logical nonsense, or tone-deaf to ask (e.g., asking an intensely frustrated user 'what they love most' about their job), you are explicitly authorized to mark that field as 'NOT_APPLICABLE'.",
       "- This is an agent-driven relevance decision based on intent and context — not a user skip request and not a hardcoded rule.",
+      "- You must never mark a field NOT_APPLICABLE if its key appears in the `targetSchema.required` array.",
       "- If a field is flagged as NOT_APPLICABLE, add it to `notApplicableFields` with the field `key` and a concise `reason` explaining why it is contextually irrelevant.",
       "- Do not ask the user to confirm agent relevance decisions. The backend will store these as `{ \"status\": \"skipped_by_agent\", \"reason\": \"...\" }` and advance the session naturally.",
-      "- Agent relevance filtering may apply to any remaining missing field when genuinely warranted, even if the field appears in `targetSchema.required`.",
       "- Do not mark fields NOT_APPLICABLE unless the contextual mismatch is clear from `capturedData`. When in doubt, leave the field active.",
       "",
       "Skip / refusal handling (optional fields only, user-initiated):",
