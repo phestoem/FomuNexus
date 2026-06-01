@@ -24,11 +24,23 @@ export async function POST(request: Request) {
       where: { id: parsedBody.data.sessionId },
       select: {
         blueprintId: true,
+        blueprint: {
+          select: {
+            archivedAt: true,
+          },
+        },
       },
     });
 
     if (!existingSession) {
       return NextResponse.json({ error: "Session not found." }, { status: 404 });
+    }
+
+    if (existingSession.blueprint.archivedAt) {
+      return NextResponse.json(
+        { error: "This form is archived and no longer accepts submissions." },
+        { status: 410 },
+      );
     }
 
     const newSession = await prisma.formSession.create({
