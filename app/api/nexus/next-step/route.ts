@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { processCompletedSession } from "@/lib/nexus/action-router";
 import { buildBlueprintContext } from "@/lib/nexus/blueprint-context";
+import { finalizeSessionCompletion } from "@/lib/nexus/completion-finalizer";
 import { buildMissingFieldHints } from "@/lib/nexus/intent-guidance";
 import { stripInternalCapturedKeys, isMetaBlueprint } from "@/lib/nexus/meta-blueprint-shared";
 import {
@@ -38,6 +39,7 @@ import {
   stripInvalidRequiredFieldValues,
   stripSessionMeta,
   NEXUS_META_KEY,
+  type JsonValue,
   type SchemaFieldDefinition,
   type SessionMeta,
   type TargetSchema,
@@ -389,31 +391,74 @@ async function buildCompletedResponse(
     capturedData: parsedCapturedData,
   });
 
-  try {
-    const result = await processCompletedSession(sessionId, { origin });
+  const result = await processCompletedSession(sessionId, { origin });
 
-    if (result.kind === "meta_compilation") {
-      return nexusNextStepResponseSchema.parse({
-        extractedData,
-        isCompleted: true,
-        capturedData: parsedCapturedData,
-        blueprintId: blueprint.id,
-        blueprintContext,
-        compiledBlueprint: result.compiledBlueprint,
-        actionsExecuted: [],
-      });
-    }
-
-    return createCompletedResponse(
+  if (result.kind === "meta_compilation") {
+    return nexusNextStepResponseSchema.parse({
       extractedData,
-      result.actionsExecuted,
-      capturedData,
-      blueprint,
-    );
-  } catch (dispatchError) {
-    console.error("Autonomous action routing failed:", dispatchError);
-    return createCompletedResponse(extractedData, [], capturedData, blueprint);
+      isCompleted: true,
+      capturedData: parsedCapturedData,
+      blueprintId: blueprint.id,
+      blueprintContext,
+      compiledBlueprint: result.compiledBlueprint,
+      actionsExecuted: [],
+    });
   }
+
+  return createCompletedResponse(
+    extractedData,
+    result.actionsExecuted,
+    capturedData,
+    blueprint,
+  );
+}
+
+async function finalizeCompletedSession(params: {
+  sessionId: string;
+  extractedData: Record<string, unknown>;
+  capturedData: Record<string, JsonValue>;
+  blueprint: {
+    id: string;
+    label: string;
+    targetSchema: unknown;
+    toneProfile: unknown;
+  };
+  request: Request;
+}): Promise<NexusNextStepResponse> {
+  return finalizeSessionCompletion({
+    capturedData: params.capturedData,
+    markCompleted: async (capturedData) => {
+      await prisma.formSession.update({
+        where: { id: params.sessionId },
+        data: {
+          capturedData,
+          status: SessionStatus.COMPLETED,
+        },
+      });
+    },
+    restoreActive: async (capturedData) => {
+      await prisma.formSession.update({
+        where: { id: params.sessionId },
+        data: {
+          capturedData,
+          status: SessionStatus.ACTIVE,
+        },
+      });
+    },
+    buildResponse: () => buildCompletedResponse(
+      params.sessionId,
+      params.extractedData,
+      params.capturedData,
+      params.blueprint,
+      params.request,
+    ),
+    onCompletionError: (error) => {
+      console.error("Autonomous completion processing failed:", error);
+    },
+    onRollbackError: (error) => {
+      console.error("Failed to restore session after completion error:", error);
+    },
+  });
 }
 
 async function extractDataFromUserInput(params: {
@@ -1005,54 +1050,38 @@ export async function POST(request: Request) {
     targetSchema = buildEffectiveTargetSchema(blueprintSchema, sessionMeta);
 
     if (areAllRequiredFieldsSatisfied(targetSchema, capturedData)) {
-      await prisma.formSession.update({
-        where: { id: sessionId },
-        data: {
-          capturedData,
-          status: SessionStatus.COMPLETED,
-        },
-      });
-
       return NextResponse.json(
-        await buildCompletedResponse(
+        await finalizeCompletedSession({
           sessionId,
           extractedData,
           capturedData,
-          {
+          blueprint: {
             id: session.blueprintId,
             label: session.blueprint.label,
             targetSchema: session.blueprint.targetSchema,
             toneProfile: session.blueprint.toneProfile,
           },
           request,
-        ),
+        }),
       );
     }
 
     const nextMissingField = getMissingFields(targetSchema, capturedData)[0];
 
     if (!nextMissingField) {
-      await prisma.formSession.update({
-        where: { id: sessionId },
-        data: {
-          capturedData,
-          status: SessionStatus.COMPLETED,
-        },
-      });
-
       return NextResponse.json(
-        await buildCompletedResponse(
+        await finalizeCompletedSession({
           sessionId,
           extractedData,
           capturedData,
-          {
+          blueprint: {
             id: session.blueprintId,
             label: session.blueprint.label,
             targetSchema: session.blueprint.targetSchema,
             toneProfile: session.blueprint.toneProfile,
           },
           request,
-        ),
+        }),
       );
     }
 

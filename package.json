@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate"
