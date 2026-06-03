@@ -389,30 +389,72 @@ async function buildCompletedResponse(
     capturedData: parsedCapturedData,
   });
 
-  try {
-    const result = await processCompletedSession(sessionId, { origin });
+  const result = await processCompletedSession(sessionId, { origin });
 
-    if (result.kind === "meta_compilation") {
-      return nexusNextStepResponseSchema.parse({
-        extractedData,
-        isCompleted: true,
-        capturedData: parsedCapturedData,
-        blueprintId: blueprint.id,
-        blueprintContext,
-        compiledBlueprint: result.compiledBlueprint,
-        actionsExecuted: [],
+  if (result.kind === "meta_compilation") {
+    return nexusNextStepResponseSchema.parse({
+      extractedData,
+      isCompleted: true,
+      capturedData: parsedCapturedData,
+      blueprintId: blueprint.id,
+      blueprintContext,
+      compiledBlueprint: result.compiledBlueprint,
+      actionsExecuted: [],
+    });
+  }
+
+  return createCompletedResponse(
+    extractedData,
+    result.actionsExecuted,
+    capturedData,
+    blueprint,
+  );
+}
+
+async function finalizeCompletedSession(params: {
+  sessionId: string;
+  extractedData: Record<string, unknown>;
+  capturedData: Record<string, unknown>;
+  blueprint: {
+    id: string;
+    label: string;
+    targetSchema: unknown;
+    toneProfile: unknown;
+  };
+  request: Request;
+}): Promise<NexusNextStepResponse> {
+  await prisma.formSession.update({
+    where: { id: params.sessionId },
+    data: {
+      capturedData: params.capturedData,
+      status: SessionStatus.COMPLETED,
+    },
+  });
+
+  try {
+    return await buildCompletedResponse(
+      params.sessionId,
+      params.extractedData,
+      params.capturedData,
+      params.blueprint,
+      params.request,
+    );
+  } catch (completionError) {
+    console.error("Autonomous completion processing failed:", completionError);
+
+    try {
+      await prisma.formSession.update({
+        where: { id: params.sessionId },
+        data: {
+          capturedData: params.capturedData,
+          status: SessionStatus.ACTIVE,
+        },
       });
+    } catch (rollbackError) {
+      console.error("Failed to restore session after completion error:", rollbackError);
     }
 
-    return createCompletedResponse(
-      extractedData,
-      result.actionsExecuted,
-      capturedData,
-      blueprint,
-    );
-  } catch (dispatchError) {
-    console.error("Autonomous action routing failed:", dispatchError);
-    return createCompletedResponse(extractedData, [], capturedData, blueprint);
+    throw completionError;
   }
 }
 
@@ -1005,54 +1047,38 @@ export async function POST(request: Request) {
     targetSchema = buildEffectiveTargetSchema(blueprintSchema, sessionMeta);
 
     if (areAllRequiredFieldsSatisfied(targetSchema, capturedData)) {
-      await prisma.formSession.update({
-        where: { id: sessionId },
-        data: {
-          capturedData,
-          status: SessionStatus.COMPLETED,
-        },
-      });
-
       return NextResponse.json(
-        await buildCompletedResponse(
+        await finalizeCompletedSession({
           sessionId,
           extractedData,
           capturedData,
-          {
+          blueprint: {
             id: session.blueprintId,
             label: session.blueprint.label,
             targetSchema: session.blueprint.targetSchema,
             toneProfile: session.blueprint.toneProfile,
           },
           request,
-        ),
+        }),
       );
     }
 
     const nextMissingField = getMissingFields(targetSchema, capturedData)[0];
 
     if (!nextMissingField) {
-      await prisma.formSession.update({
-        where: { id: sessionId },
-        data: {
-          capturedData,
-          status: SessionStatus.COMPLETED,
-        },
-      });
-
       return NextResponse.json(
-        await buildCompletedResponse(
+        await finalizeCompletedSession({
           sessionId,
           extractedData,
           capturedData,
-          {
+          blueprint: {
             id: session.blueprintId,
             label: session.blueprint.label,
             targetSchema: session.blueprint.targetSchema,
             toneProfile: session.blueprint.toneProfile,
           },
           request,
-        ),
+        }),
       );
     }
 
