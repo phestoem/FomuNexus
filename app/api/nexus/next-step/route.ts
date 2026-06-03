@@ -38,6 +38,7 @@ import {
   stripInvalidRequiredFieldValues,
   stripSessionMeta,
   NEXUS_META_KEY,
+  type JsonValue,
   type SchemaFieldDefinition,
   type SessionMeta,
   type TargetSchema,
@@ -414,7 +415,7 @@ async function buildCompletedResponse(
 async function finalizeCompletedSession(params: {
   sessionId: string;
   extractedData: Record<string, unknown>;
-  capturedData: Record<string, unknown>;
+  capturedData: Record<string, JsonValue>;
   blueprint: {
     id: string;
     label: string;
