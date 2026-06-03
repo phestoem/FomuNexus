@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { processCompletedSession } from "@/lib/nexus/action-router";
 import { buildBlueprintContext } from "@/lib/nexus/blueprint-context";
+import { finalizeSessionCompletion } from "@/lib/nexus/completion-finalizer";
 import { buildMissingFieldHints } from "@/lib/nexus/intent-guidance";
 import { stripInternalCapturedKeys, isMetaBlueprint } from "@/lib/nexus/meta-blueprint-shared";
 import {
@@ -424,39 +425,40 @@ async function finalizeCompletedSession(params: {
   };
   request: Request;
 }): Promise<NexusNextStepResponse> {
-  await prisma.formSession.update({
-    where: { id: params.sessionId },
-    data: {
-      capturedData: params.capturedData,
-      status: SessionStatus.COMPLETED,
+  return finalizeSessionCompletion({
+    capturedData: params.capturedData,
+    markCompleted: async (capturedData) => {
+      await prisma.formSession.update({
+        where: { id: params.sessionId },
+        data: {
+          capturedData,
+          status: SessionStatus.COMPLETED,
+        },
+      });
     },
-  });
-
-  try {
-    return await buildCompletedResponse(
+    restoreActive: async (capturedData) => {
+      await prisma.formSession.update({
+        where: { id: params.sessionId },
+        data: {
+          capturedData,
+          status: SessionStatus.ACTIVE,
+        },
+      });
+    },
+    buildResponse: () => buildCompletedResponse(
       params.sessionId,
       params.extractedData,
       params.capturedData,
       params.blueprint,
       params.request,
-    );
-  } catch (completionError) {
-    console.error("Autonomous completion processing failed:", completionError);
-
-    try {
-      await prisma.formSession.update({
-        where: { id: params.sessionId },
-        data: {
-          capturedData: params.capturedData,
-          status: SessionStatus.ACTIVE,
-        },
-      });
-    } catch (rollbackError) {
-      console.error("Failed to restore session after completion error:", rollbackError);
-    }
-
-    throw completionError;
-  }
+    ),
+    onCompletionError: (error) => {
+      console.error("Autonomous completion processing failed:", error);
+    },
+    onRollbackError: (error) => {
+      console.error("Failed to restore session after completion error:", error);
+    },
+  });
 }
 
 async function extractDataFromUserInput(params: {
