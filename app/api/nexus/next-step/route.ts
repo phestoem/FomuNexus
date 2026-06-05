@@ -178,6 +178,10 @@ function enforceRequiredFieldIntegrity(
   const sanitizedExtractedData: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(outcome.extractedData)) {
     if (isAgentSkippedFieldValue(value)) {
+      if (requiredKeys.has(key)) {
+        continue;
+      }
+
       sanitizedExtractedData[key] = value;
       continue;
     }
@@ -208,7 +212,9 @@ function enforceRequiredFieldIntegrity(
   return {
     extractedData: sanitizedExtractedData,
     skippedFields: allowedSkippedFields,
-    agentSkippedFields: outcome.agentSkippedFields,
+    agentSkippedFields: outcome.agentSkippedFields.filter(
+      (key) => !requiredKeys.has(key),
+    ),
   };
 }
 
@@ -472,7 +478,7 @@ async function extractDataFromUserInput(params: {
       "- This is an agent-driven relevance decision based on intent and context — not a user skip request and not a hardcoded rule.",
       "- If a field is flagged as NOT_APPLICABLE, add it to `notApplicableFields` with the field `key` and a concise `reason` explaining why it is contextually irrelevant.",
       "- Do not ask the user to confirm agent relevance decisions. The backend will store these as `{ \"status\": \"skipped_by_agent\", \"reason\": \"...\" }` and advance the session naturally.",
-      "- Agent relevance filtering may apply to any remaining missing field when genuinely warranted, even if the field appears in `targetSchema.required`.",
+      "- Agent relevance filtering may only apply to optional remaining fields. If a field appears in `targetSchema.required`, do not mark it NOT_APPLICABLE; keep it active and ask for a valid answer.",
       "- Do not mark fields NOT_APPLICABLE unless the contextual mismatch is clear from `capturedData`. When in doubt, leave the field active.",
       "",
       "Skip / refusal handling (optional fields only, user-initiated):",
