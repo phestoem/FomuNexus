@@ -6,6 +6,7 @@ import { processCompletedSession } from "@/lib/nexus/action-router";
 import { buildBlueprintContext } from "@/lib/nexus/blueprint-context";
 import { buildMissingFieldHints } from "@/lib/nexus/intent-guidance";
 import { stripInternalCapturedKeys, isMetaBlueprint } from "@/lib/nexus/meta-blueprint-shared";
+import { persistSessionProgress } from "@/lib/nexus/session-progress";
 import {
   extractionResultSchema,
   nexusNextStepRequestSchema,
@@ -28,17 +29,14 @@ import {
   isAgentSkippedFieldValue,
   isPollutedFieldValue,
   isSkippedPlaceholderValue,
-  mergeCapturedData,
   parseCapturedData,
   parseSessionMeta,
   parseTargetSchema,
   registerInjectedField,
   resolveComponentType,
   SKIPPED_FIELD_VALUE,
-  stripInvalidRequiredFieldValues,
   stripSessionMeta,
   NEXUS_META_KEY,
-  type JsonValue,
   type SchemaFieldDefinition,
   type SessionMeta,
   type TargetSchema,
@@ -415,98 +413,6 @@ async function buildCompletedResponse(
     console.error("Autonomous action routing failed:", dispatchError);
     return createCompletedResponse(extractedData, [], capturedData, blueprint);
   }
-}
-
-function mergeSessionMeta(
-  currentMeta: SessionMeta,
-  nextMeta: SessionMeta,
-): SessionMeta {
-  const fieldsByKey = new Map(
-    currentMeta.injectedFields.map((field) => [field.key, field]),
-  );
-
-  for (const field of nextMeta.injectedFields) {
-    fieldsByKey.set(field.key, field);
-  }
-
-  return {
-    injectedFields: [...fieldsByKey.values()].sort(
-      (left, right) => left.priority - right.priority,
-    ),
-  };
-}
-
-async function persistSessionProgress(params: {
-  sessionId: string;
-  blueprintSchema: TargetSchema;
-  sessionMeta: SessionMeta;
-  extractedData?: Record<string, unknown>;
-  skipIfCompleted?: boolean;
-}): Promise<{
-  capturedData: Record<string, JsonValue>;
-  sessionMeta: SessionMeta;
-  targetSchema: TargetSchema;
-  previousStatus: SessionStatus;
-}> {
-  const latestSession = await prisma.formSession.findUnique({
-    where: { id: params.sessionId },
-    select: {
-      capturedData: true,
-      status: true,
-    },
-  });
-
-  if (!latestSession) {
-    throw new Error(`Session "${params.sessionId}" was not found.`);
-  }
-
-  const latestCapturedData = parseCapturedData(latestSession.capturedData);
-  const latestSessionMeta = parseSessionMeta(latestCapturedData);
-
-  if (
-    params.skipIfCompleted &&
-    latestSession.status === SessionStatus.COMPLETED
-  ) {
-    return {
-      capturedData: latestCapturedData,
-      sessionMeta: latestSessionMeta,
-      targetSchema: buildEffectiveTargetSchema(
-        params.blueprintSchema,
-        latestSessionMeta,
-      ),
-      previousStatus: latestSession.status,
-    };
-  }
-
-  const sessionMeta = mergeSessionMeta(latestSessionMeta, params.sessionMeta);
-  const targetSchema = buildEffectiveTargetSchema(
-    params.blueprintSchema,
-    sessionMeta,
-  );
-
-  const capturedData = attachSessionMeta(
-    stripInvalidRequiredFieldValues(
-      targetSchema,
-      mergeCapturedData(
-        latestCapturedData,
-        params.extractedData ?? {},
-        targetSchema,
-      ),
-    ),
-    sessionMeta,
-  );
-
-  await prisma.formSession.update({
-    where: { id: params.sessionId },
-    data: { capturedData },
-  });
-
-  return {
-    capturedData,
-    sessionMeta,
-    targetSchema,
-    previousStatus: latestSession.status,
-  };
 }
 
 async function extractDataFromUserInput(params: {
