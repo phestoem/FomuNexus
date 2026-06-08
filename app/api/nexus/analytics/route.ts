@@ -2,67 +2,9 @@ import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import { analyticsRequestSchema } from "@/lib/nexus/schemas";
-import { prisma } from "@/lib/prisma";
-import { parseCapturedData } from "@/lib/nexus/target-schema";
-import { SessionStatus } from "@/app/generated/prisma/client";
+import { fetchBlueprintAnalyticsData } from "@/lib/nexus/analytics-data";
 
 const OPENAI_MODEL = "gpt-4o-mini";
-
-async function resolveBlueprintId(id: string): Promise<string | null> {
-  const blueprint = await prisma.formBlueprint.findUnique({
-    where: { id },
-    select: { id: true },
-  });
-
-  return blueprint?.id ?? null;
-}
-
-async function fetchBlueprintAnalyticsData(idOrBlueprintId: string) {
-  const resolved = await resolveBlueprintId(idOrBlueprintId);
-
-  if (!resolved) {
-    return null;
-  }
-
-  const blueprint = await prisma.formBlueprint.findUnique({
-    where: { id: resolved },
-  });
-
-  if (!blueprint) {
-    return null;
-  }
-
-  const sessions = await prisma.formSession.findMany({
-    where: {
-      blueprintId: resolved,
-      status: SessionStatus.COMPLETED,
-    },
-    orderBy: {
-      updatedAt: "desc",
-    },
-    select: {
-      id: true,
-      capturedData: true,
-      updatedAt: true,
-    },
-  });
-
-  const submissions = sessions.map((session) => ({
-    sessionId: session.id,
-    completedAt: session.updatedAt.toISOString(),
-    capturedData: parseCapturedData(session.capturedData),
-  }));
-
-  return {
-    blueprint: {
-      id: blueprint.id,
-      label: blueprint.label,
-    },
-    submissions,
-    submissionCount: submissions.length,
-    inputId: idOrBlueprintId,
-  };
-}
 
 export async function GET(request: Request) {
   try {
