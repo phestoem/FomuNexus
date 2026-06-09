@@ -175,6 +175,22 @@ function enforceRequiredFieldIntegrity(
     };
   }
 
+  const illegalAgentSkips = Object.entries(outcome.extractedData)
+    .filter(([key, value]) => requiredKeys.has(key) && isAgentSkippedFieldValue(value))
+    .map(([key]) => key);
+  if (illegalAgentSkips.length > 0) {
+    const blockedKey = illegalAgentSkips[0];
+    return {
+      extractedData: {},
+      skippedFields: [],
+      agentSkippedFields: [],
+      validationError: buildRequiredFieldValidationError(
+        blockedKey,
+        missingFieldMap.get(blockedKey),
+      ),
+    };
+  }
+
   const sanitizedExtractedData: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(outcome.extractedData)) {
     if (isAgentSkippedFieldValue(value)) {
@@ -460,9 +476,9 @@ async function extractDataFromUserInput(params: {
       "- Example (bad): \"The field 'general_feedback' is required.\"",
       "- Example (good): \"Could you share any additional feedback about the AGM before we continue?\"",
       "",
-      "CRITICAL ENFORCEMENT RULE (user-initiated skips only):",
+      "CRITICAL ENFORCEMENT RULE (hard required fields):",
       "- Before processing a user skip request or adding a field to the `skippedFields` array, check if that field's key is listed in the `targetSchema.required` array.",
-      "- If the user tries to skip a field that IS in the required list, you are strictly FORBIDDEN from honoring that skip or accepting a null value.",
+      "- If the user tries to skip a field that IS in the required list, you are strictly FORBIDDEN from honoring that skip, accepting a null value, or marking it NOT_APPLICABLE.",
       "- Instead of moving to the next question, you must generate a `validationError` explaining why this specific information is mandatory for this form, and politely re-ask the user for a valid response.",
       "- When `validationError` is set for a required-field refusal, return an empty `fields` array, an empty `skippedFields` array, an empty `notApplicableFields` array, and set `validationError` to your message.",
       "",
@@ -472,7 +488,7 @@ async function extractDataFromUserInput(params: {
       "- This is an agent-driven relevance decision based on intent and context — not a user skip request and not a hardcoded rule.",
       "- If a field is flagged as NOT_APPLICABLE, add it to `notApplicableFields` with the field `key` and a concise `reason` explaining why it is contextually irrelevant.",
       "- Do not ask the user to confirm agent relevance decisions. The backend will store these as `{ \"status\": \"skipped_by_agent\", \"reason\": \"...\" }` and advance the session naturally.",
-      "- Agent relevance filtering may apply to any remaining missing field when genuinely warranted, even if the field appears in `targetSchema.required`.",
+      "- Agent relevance filtering may apply only to fields that do NOT appear in `targetSchema.required`. Required fields must remain active until the user supplies real data.",
       "- Do not mark fields NOT_APPLICABLE unless the contextual mismatch is clear from `capturedData`. When in doubt, leave the field active.",
       "",
       "Skip / refusal handling (optional fields only, user-initiated):",

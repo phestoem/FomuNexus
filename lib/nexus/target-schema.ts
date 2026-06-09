@@ -307,7 +307,7 @@ export function isFieldValuePresent(
   }
 
   if (isAgentSkippedFieldValue(value)) {
-    return true;
+    return options?.required === true ? false : true;
   }
 
   if (typeof value === "string") {
@@ -452,16 +452,20 @@ export function mergeCapturedData(
       continue;
     }
 
-    if (
-      requiredKeys?.has(fieldKey) &&
-      !isAgentSkippedFieldValue(fieldValue) &&
-      (fieldValue === null ||
+    if (requiredKeys?.has(fieldKey)) {
+      if (isAgentSkippedFieldValue(fieldValue)) {
+        continue;
+      }
+
+      if (
+        fieldValue === null ||
         (typeof fieldValue === "string" &&
           (fieldValue.trim().length === 0 ||
             isSkippedPlaceholderValue(fieldValue) ||
-            isPollutedFieldValue(fieldValue))))
-    ) {
-      continue;
+            isPollutedFieldValue(fieldValue)))
+      ) {
+        continue;
+      }
     }
 
     if (isPollutedFieldValue(fieldValue)) {
@@ -484,11 +488,8 @@ export function stripInvalidRequiredFieldValues(
   for (const fieldKey of requiredKeys) {
     const value = cleaned[fieldKey];
 
-    if (isAgentSkippedFieldValue(value)) {
-      continue;
-    }
-
     if (
+      isAgentSkippedFieldValue(value) ||
       value === undefined ||
       value === null ||
       (typeof value === "string" &&
