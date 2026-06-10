@@ -71,7 +71,7 @@ export function parseTargetSchema(value: unknown): TargetSchema {
 }
 
 export function parseCapturedData(value: unknown): Record<string, JsonValue> {
-  return stripPollutedCapturedData(asRecord(value));
+  return asRecord(value);
 }
 
 export function parseSessionMeta(
@@ -307,7 +307,7 @@ export function isFieldValuePresent(
   }
 
   if (isAgentSkippedFieldValue(value)) {
-    return true;
+    return options?.required === true ? false : true;
   }
 
   if (typeof value === "string") {
@@ -318,10 +318,6 @@ export function isFieldValuePresent(
 
     if (isSkippedPlaceholderValue(value)) {
       return options?.required === true ? false : true;
-    }
-
-    if (isPollutedFieldValue(value)) {
-      return false;
     }
 
     return true;
@@ -453,13 +449,18 @@ export function mergeCapturedData(
     }
 
     if (
+      isAgentSkippedFieldValue(fieldValue) &&
+      requiredKeys?.has(fieldKey)
+    ) {
+      continue;
+    }
+
+    if (
       requiredKeys?.has(fieldKey) &&
-      !isAgentSkippedFieldValue(fieldValue) &&
       (fieldValue === null ||
         (typeof fieldValue === "string" &&
           (fieldValue.trim().length === 0 ||
-            isSkippedPlaceholderValue(fieldValue) ||
-            isPollutedFieldValue(fieldValue))))
+            isSkippedPlaceholderValue(fieldValue))))
     ) {
       continue;
     }
@@ -485,6 +486,7 @@ export function stripInvalidRequiredFieldValues(
     const value = cleaned[fieldKey];
 
     if (isAgentSkippedFieldValue(value)) {
+      delete cleaned[fieldKey];
       continue;
     }
 
@@ -493,19 +495,8 @@ export function stripInvalidRequiredFieldValues(
       value === null ||
       (typeof value === "string" &&
         (value.trim().length === 0 ||
-          isSkippedPlaceholderValue(value) ||
-          isPollutedFieldValue(value)))
+          isSkippedPlaceholderValue(value)))
     ) {
-      delete cleaned[fieldKey];
-    }
-  }
-
-  for (const [fieldKey, value] of Object.entries(cleaned)) {
-    if (fieldKey === NEXUS_META_KEY) {
-      continue;
-    }
-
-    if (isPollutedFieldValue(value)) {
       delete cleaned[fieldKey];
     }
   }
