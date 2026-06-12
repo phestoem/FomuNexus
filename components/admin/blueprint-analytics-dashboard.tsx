@@ -99,12 +99,6 @@ export function BlueprintAnalyticsDashboard() {
   const [showRawPayloads, setShowRawPayloads] = useState(false);
 
   useEffect(() => {
-    if (!blueprintId) {
-      setInitialLoading(false);
-      setError("Blueprint ID is missing.");
-      return;
-    }
-
     let cancelled = false;
 
     async function loadAnalyticsData() {
