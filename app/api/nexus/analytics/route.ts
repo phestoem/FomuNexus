@@ -2,90 +2,9 @@ import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import { analyticsRequestSchema } from "@/lib/nexus/schemas";
-import { prisma } from "@/lib/prisma";
-import { parseCapturedData } from "@/lib/nexus/target-schema";
-import { SessionStatus } from "@/app/generated/prisma/client";
+import { fetchBlueprintAnalyticsData } from "@/lib/nexus/analytics-data";
 
 const OPENAI_MODEL = "gpt-4o-mini";
-
-async function resolveBlueprintId(id: string): Promise<{
-  blueprintId: string;
-  resolvedFromSessionId: boolean;
-} | null> {
-  const blueprint = await prisma.formBlueprint.findUnique({
-    where: { id },
-    select: { id: true },
-  });
-
-  if (blueprint) {
-    return {
-      blueprintId: blueprint.id,
-      resolvedFromSessionId: false,
-    };
-  }
-
-  const session = await prisma.formSession.findUnique({
-    where: { id },
-    select: { blueprintId: true },
-  });
-
-  if (!session) {
-    return null;
-  }
-
-  return {
-    blueprintId: session.blueprintId,
-    resolvedFromSessionId: true,
-  };
-}
-
-async function fetchBlueprintAnalyticsData(idOrBlueprintId: string) {
-  const resolved = await resolveBlueprintId(idOrBlueprintId);
-
-  if (!resolved) {
-    return null;
-  }
-
-  const blueprint = await prisma.formBlueprint.findUnique({
-    where: { id: resolved.blueprintId },
-  });
-
-  if (!blueprint) {
-    return null;
-  }
-
-  const sessions = await prisma.formSession.findMany({
-    where: {
-      blueprintId: resolved.blueprintId,
-      status: SessionStatus.COMPLETED,
-    },
-    orderBy: {
-      updatedAt: "desc",
-    },
-    select: {
-      id: true,
-      capturedData: true,
-      updatedAt: true,
-    },
-  });
-
-  const submissions = sessions.map((session) => ({
-    sessionId: session.id,
-    completedAt: session.updatedAt.toISOString(),
-    capturedData: parseCapturedData(session.capturedData),
-  }));
-
-  return {
-    blueprint: {
-      id: blueprint.id,
-      label: blueprint.label,
-    },
-    submissions,
-    submissionCount: submissions.length,
-    resolvedFromSessionId: resolved.resolvedFromSessionId,
-    inputId: idOrBlueprintId,
-  };
-}
 
 export async function GET(request: Request) {
   try {
