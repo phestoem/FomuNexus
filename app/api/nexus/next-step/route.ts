@@ -355,7 +355,6 @@ function createCompletedResponse(
     isCompleted: true,
     actionsExecuted,
     capturedData: parsedCapturedData,
-    blueprintId: blueprint?.id,
     blueprintContext: blueprint
       ? buildBlueprintContext({
           label: blueprint.label,

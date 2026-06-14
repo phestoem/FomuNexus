@@ -454,7 +454,6 @@ function AmendmentComposer(props: {
 function CompletionSummary({
   capturedData,
   actionsExecuted,
-  blueprintId,
   blueprintContext,
   recentlyAmendedKeys,
   amendmentFlash,
@@ -472,7 +471,6 @@ function CompletionSummary({
 }: {
   capturedData: CapturedData;
   actionsExecuted: ActionExecuted[];
-  blueprintId: string | null;
   blueprintContext: BlueprintContext | null;
   recentlyAmendedKeys: string[];
   amendmentFlash: string | null;
@@ -593,14 +591,6 @@ function CompletionSummary({
       ) : null}
 
       <div className={styles.restartSection}>
-        {blueprintId ? (
-          <a
-            href={`/admin/blueprints/${blueprintId}/analytics`}
-            className={styles.analyticsLink}
-          >
-            Open analytics for this form
-          </a>
-        ) : null}
         <button
           type="button"
           className={styles.restartButton}
@@ -687,7 +677,6 @@ export function IntakeSessionForm({
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [extractionFlash, setExtractionFlash] = useState<string | null>(null);
   const [actionsExecuted, setActionsExecuted] = useState<ActionExecuted[]>([]);
-  const [blueprintId, setBlueprintId] = useState<string | null>(null);
   const [blueprintContext, setBlueprintContext] =
     useState<BlueprintContext | null>(null);
   const [compiledBlueprint, setCompiledBlueprint] =
@@ -762,7 +751,6 @@ export function IntakeSessionForm({
     }
 
     setActionsExecuted(response.actionsExecuted ?? []);
-    setBlueprintId(response.blueprintId ?? null);
 
     if (response.blueprintContext) {
       setBlueprintContext(response.blueprintContext);
@@ -1098,7 +1086,6 @@ export function IntakeSessionForm({
           <CompletionSummary
             capturedData={capturedData}
             actionsExecuted={actionsExecuted}
-            blueprintId={blueprintId}
             blueprintContext={blueprintContext}
             recentlyAmendedKeys={recentlyAmendedKeys}
             amendmentFlash={amendmentFlash}
