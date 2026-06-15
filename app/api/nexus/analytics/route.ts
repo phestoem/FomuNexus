@@ -8,46 +8,9 @@ import { SessionStatus } from "@/app/generated/prisma/client";
 
 const OPENAI_MODEL = "gpt-4o-mini";
 
-async function resolveBlueprintId(id: string): Promise<{
-  blueprintId: string;
-  resolvedFromSessionId: boolean;
-} | null> {
+async function fetchBlueprintAnalyticsData(blueprintId: string) {
   const blueprint = await prisma.formBlueprint.findUnique({
-    where: { id },
-    select: { id: true },
-  });
-
-  if (blueprint) {
-    return {
-      blueprintId: blueprint.id,
-      resolvedFromSessionId: false,
-    };
-  }
-
-  const session = await prisma.formSession.findUnique({
-    where: { id },
-    select: { blueprintId: true },
-  });
-
-  if (!session) {
-    return null;
-  }
-
-  return {
-    blueprintId: session.blueprintId,
-    resolvedFromSessionId: true,
-  };
-}
-
-async function fetchBlueprintAnalyticsData(idOrBlueprintId: string) {
-  const resolved = await resolveBlueprintId(idOrBlueprintId);
-
-  if (!resolved) {
-    return null;
-  }
-
-  const blueprint = await prisma.formBlueprint.findUnique({
-    where: { id: resolved.blueprintId },
+    where: { id: blueprintId },
   });
 
   if (!blueprint) {
@@ -56,7 +19,7 @@ async function fetchBlueprintAnalyticsData(idOrBlueprintId: string) {
 
   const sessions = await prisma.formSession.findMany({
     where: {
-      blueprintId: resolved.blueprintId,
+      blueprintId,
       status: SessionStatus.COMPLETED,
     },
     orderBy: {
@@ -82,8 +45,6 @@ async function fetchBlueprintAnalyticsData(idOrBlueprintId: string) {
     },
     submissions,
     submissionCount: submissions.length,
-    resolvedFromSessionId: resolved.resolvedFromSessionId,
-    inputId: idOrBlueprintId,
   };
 }
 
@@ -102,10 +63,7 @@ export async function GET(request: Request) {
 
     if (!data) {
       return NextResponse.json(
-        {
-          error:
-            "Blueprint not found. Analytics URLs use a blueprint ID, not a form session ID.",
-        },
+        { error: "Blueprint not found." },
         { status: 404 },
       );
     }
@@ -144,10 +102,7 @@ export async function POST(request: Request) {
 
     if (!data) {
       return NextResponse.json(
-        {
-          error:
-            "Blueprint not found. Analytics URLs use a blueprint ID, not a form session ID.",
-        },
+        { error: "Blueprint not found." },
         { status: 404 },
       );
     }

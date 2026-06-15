@@ -18,6 +18,20 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Admin access
+
+Admin pages and management APIs are protected with HTTP Basic Auth in production.
+Set both environment variables before deploying:
+
+```bash
+FOMU_NEXUS_ADMIN_USER=admin
+FOMU_NEXUS_ADMIN_PASSWORD=replace-with-a-long-random-secret
+```
+
+When these values are missing in production, admin and management endpoints fail
+closed with `503` instead of exposing form submissions or destructive actions.
+Local development remains open by default unless the credentials are configured.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
