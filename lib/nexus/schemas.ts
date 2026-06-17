@@ -69,7 +69,6 @@ export const nexusNextStepResponseSchema = z.object({
   nextStep: nextStepSchema.optional(),
   actionsExecuted: z.array(actionExecutedSchema).optional(),
   capturedData: z.record(z.string(), z.unknown()).optional(),
-  blueprintId: z.string().optional(),
   blueprintContext: blueprintContextSchema.optional(),
   missingFieldHints: z.array(missingFieldHintSchema).optional(),
   validationError: z.string().optional(),
