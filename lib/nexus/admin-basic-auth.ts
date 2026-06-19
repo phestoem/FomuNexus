@@ -2,10 +2,11 @@ export const ADMIN_AUTH_REALM = "Fomu Nexus Admin";
 export const ADMIN_USER_ENV = "FOMU_NEXUS_ADMIN_USER";
 export const ADMIN_PASSWORD_ENV = "FOMU_NEXUS_ADMIN_PASSWORD";
 
-type AdminAuthEnvironment = Pick<
-  NodeJS.ProcessEnv,
-  "NODE_ENV" | typeof ADMIN_USER_ENV | typeof ADMIN_PASSWORD_ENV
->;
+type AdminAuthEnvironment = {
+  NODE_ENV?: string;
+  FOMU_NEXUS_ADMIN_USER?: string;
+  FOMU_NEXUS_ADMIN_PASSWORD?: string;
+};
 
 export type AdminAuthDecision =
   | { authorized: true; bypassed: boolean }

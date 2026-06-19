@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { unstable_doesProxyMatch } from "next/experimental/testing/server";
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { NextRequest } from "next/server";
 import {
   ADMIN_AUTH_REALM,
@@ -49,7 +49,7 @@ async function withEnvironment(
 }
 
 function doesProxyMatch(url: string): boolean {
-  return unstable_doesProxyMatch({
+  return unstable_doesMiddlewareMatch({
     config,
     nextConfig: {},
     url,
