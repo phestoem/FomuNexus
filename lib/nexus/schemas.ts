@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+export const MAX_NEXUS_ID_LENGTH = 128;
+export const MAX_CREATOR_TITLE_LENGTH = 200;
+export const MAX_INTAKE_USER_INPUT_LENGTH = 8_000;
+export const MAX_CREATOR_PROMPT_LENGTH = 12_000;
+export const MAX_ANALYTICS_QUERY_LENGTH = 4_000;
+
 export const componentTypeSchema = z.enum([
   "text",
   "number",
@@ -107,8 +113,8 @@ export const questionGenerationResultSchema = z.object({
 });
 
 export const nexusNextStepRequestSchema = z.object({
-  sessionId: z.string().min(1),
-  userInput: z.string().optional(),
+  sessionId: z.string().min(1).max(MAX_NEXUS_ID_LENGTH),
+  userInput: z.string().max(MAX_INTAKE_USER_INPUT_LENGTH).optional(),
 });
 
 export const toneProfileSchema = z.object({
@@ -129,26 +135,26 @@ export const targetSchemaDefinitionSchema = z.object({
 });
 
 export const createBlueprintRequestSchema = z.object({
-  title: z.string().min(1),
-  prompt: z.string().min(1),
+  title: z.string().min(1).max(MAX_CREATOR_TITLE_LENGTH),
+  prompt: z.string().min(1).max(MAX_CREATOR_PROMPT_LENGTH),
 });
 
 export const startCopilotRequestSchema = z.object({
-  title: z.string().min(1),
-  roughIdea: z.string().min(1),
+  title: z.string().min(1).max(MAX_CREATOR_TITLE_LENGTH),
+  roughIdea: z.string().min(1).max(MAX_CREATOR_PROMPT_LENGTH),
 });
 
 export const analyticsRequestSchema = z.object({
-  blueprintId: z.string().min(1),
-  query: z.string().min(1),
+  blueprintId: z.string().min(1).max(MAX_NEXUS_ID_LENGTH),
+  query: z.string().min(1).max(MAX_ANALYTICS_QUERY_LENGTH),
 });
 
 export const restartSessionRequestSchema = z.object({
-  sessionId: z.string().min(1),
+  sessionId: z.string().min(1).max(MAX_NEXUS_ID_LENGTH),
 });
 
 export const startSessionRequestSchema = z.object({
-  blueprintId: z.string().min(1),
+  blueprintId: z.string().min(1).max(MAX_NEXUS_ID_LENGTH),
 });
 
 export const listBlueprintsQuerySchema = z.object({
