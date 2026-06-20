@@ -3,20 +3,31 @@ import { z } from "zod";
 import { buildFormUrl } from "@/lib/nexus/app-url";
 import { createBlueprintFromPrompt } from "@/lib/nexus/create-blueprint-from-prompt";
 import {
+  MAX_CREATOR_PROMPT_LENGTH,
+  MAX_CREATOR_TITLE_LENGTH,
+  MAX_NEXUS_ID_LENGTH,
+} from "@/lib/nexus/schemas";
+import {
   formatIntakeSnapshotJson,
   getIntakeSessionSnapshot,
 } from "@/lib/mcp/intake-session";
 import { SessionStatus } from "@/app/generated/prisma/client";
 
 const requestHumanIntakeInputSchema = {
-  formTitle: z.string().min(1).describe("Human-readable title for the intake form."),
+  formTitle: z
+    .string()
+    .min(1)
+    .max(MAX_CREATOR_TITLE_LENGTH)
+    .describe("Human-readable title for the intake form."),
   roughIntakeGoal: z
     .string()
     .min(1)
+    .max(MAX_CREATOR_PROMPT_LENGTH)
     .describe("Plain-language description of what the human should provide."),
   sessionId: z
     .string()
     .min(1)
+    .max(MAX_NEXUS_ID_LENGTH)
     .optional()
     .describe(
       "Existing intake session to poll. Omit on first call; pass the returned sessionId to resolve captured data when the human finishes.",
