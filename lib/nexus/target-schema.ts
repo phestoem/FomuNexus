@@ -1,4 +1,7 @@
-import type { ComponentType } from "@/lib/nexus/schemas";
+import type {
+  ComponentType,
+  CompiledBlueprintResult,
+} from "@/lib/nexus/schemas";
 
 type JsonValue =
   | string
@@ -27,6 +30,7 @@ export interface SessionInjectedField {
 
 export interface SessionMeta {
   injectedFields: SessionInjectedField[];
+  compiledBlueprint?: CompiledBlueprintResult;
 }
 
 export interface TargetSchema {
@@ -82,21 +86,49 @@ export function parseSessionMeta(
   if (
     typeof rawMeta !== "object" ||
     rawMeta === null ||
-    Array.isArray(rawMeta) ||
-    !Array.isArray((rawMeta as unknown as SessionMeta).injectedFields)
+    Array.isArray(rawMeta)
   ) {
     return { injectedFields: [] };
   }
 
-  const meta = rawMeta as unknown as SessionMeta;
-  return {
-    injectedFields: (meta.injectedFields ?? []).filter(
-      (field) =>
-        typeof field.key === "string" &&
-        typeof field.property === "object" &&
-        field.property !== null,
-    ),
-  };
+  const meta = rawMeta as Record<string, unknown>;
+  const injectedFields = Array.isArray(meta.injectedFields)
+    ? (meta.injectedFields as SessionInjectedField[]).filter(
+        (field) =>
+          typeof field.key === "string" &&
+          typeof field.property === "object" &&
+          field.property !== null,
+      )
+    : [];
+
+  const compiledBlueprint =
+    typeof meta.compiledBlueprint === "object" &&
+    meta.compiledBlueprint !== null &&
+    !Array.isArray(meta.compiledBlueprint)
+      ? (meta.compiledBlueprint as Partial<CompiledBlueprintResult>)
+      : null;
+
+  if (
+    compiledBlueprint &&
+    typeof compiledBlueprint.blueprintId === "string" &&
+    typeof compiledBlueprint.sessionId === "string" &&
+    typeof compiledBlueprint.label === "string" &&
+    typeof compiledBlueprint.formUrl === "string" &&
+    typeof compiledBlueprint.analyticsUrl === "string"
+  ) {
+    return {
+      injectedFields,
+      compiledBlueprint: {
+        blueprintId: compiledBlueprint.blueprintId,
+        sessionId: compiledBlueprint.sessionId,
+        label: compiledBlueprint.label,
+        formUrl: compiledBlueprint.formUrl,
+        analyticsUrl: compiledBlueprint.analyticsUrl,
+      },
+    };
+  }
+
+  return { injectedFields };
 }
 
 export function stripSessionMeta(
@@ -110,13 +142,21 @@ export function attachSessionMeta(
   capturedData: Record<string, JsonValue>,
   meta: SessionMeta,
 ): Record<string, JsonValue> {
-  if (meta.injectedFields.length === 0) {
+  if (meta.injectedFields.length === 0 && !meta.compiledBlueprint) {
     return stripSessionMeta(capturedData);
+  }
+
+  const nextMeta: SessionMeta = {
+    injectedFields: meta.injectedFields,
+  };
+
+  if (meta.compiledBlueprint) {
+    nextMeta.compiledBlueprint = meta.compiledBlueprint;
   }
 
   return {
     ...stripSessionMeta(capturedData),
-    [NEXUS_META_KEY]: meta as unknown as JsonValue,
+    [NEXUS_META_KEY]: nextMeta as unknown as JsonValue,
   };
 }
 
