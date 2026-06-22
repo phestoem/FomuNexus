@@ -11,7 +11,11 @@ import {
 } from "@/lib/nexus/meta-blueprint-shared";
 import { compileCreatorBlueprint } from "@/lib/nexus/meta-blueprint";
 import { prisma } from "@/lib/prisma";
-import { parseCapturedData } from "@/lib/nexus/target-schema";
+import {
+  attachSessionMeta,
+  parseCapturedData,
+  parseSessionMeta,
+} from "@/lib/nexus/target-schema";
 import { SessionStatus } from "@/app/generated/prisma/client";
 
 const OPENAI_MODEL = "gpt-4o-mini";
@@ -131,9 +135,17 @@ export async function processCompletedSession(
   }
 
   const capturedData = parseCapturedData(session.capturedData);
+  const sessionMeta = parseSessionMeta(capturedData);
   const formLabel = session.blueprint.label;
 
   if (isMetaBlueprint(session.blueprint)) {
+    if (sessionMeta.compiledBlueprint) {
+      return {
+        kind: "meta_compilation",
+        compiledBlueprint: sessionMeta.compiledBlueprint,
+      };
+    }
+
     const origin =
       options?.origin ??
       process.env.NEXT_PUBLIC_APP_URL ??
@@ -142,6 +154,16 @@ export async function processCompletedSession(
     const compiledBlueprint = await compileCreatorBlueprint({
       capturedData,
       origin,
+    });
+
+    await prisma.formSession.update({
+      where: { id: sessionId },
+      data: {
+        capturedData: attachSessionMeta(capturedData, {
+          ...sessionMeta,
+          compiledBlueprint,
+        }),
+      },
     });
 
     console.log(

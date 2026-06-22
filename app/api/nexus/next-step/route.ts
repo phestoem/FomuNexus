@@ -13,6 +13,7 @@ import {
   questionGenerationResultSchema,
   toneProfileSchema,
   type ActionExecuted,
+  type CompiledBlueprintResult,
   type NexusNextStepResponse,
 } from "@/lib/nexus/schemas";
 import {
@@ -38,6 +39,7 @@ import {
   stripInvalidRequiredFieldValues,
   stripSessionMeta,
   NEXUS_META_KEY,
+  type JsonValue,
   type SchemaFieldDefinition,
   type SessionMeta,
   type TargetSchema,
@@ -344,7 +346,10 @@ function createCompletedResponse(
     targetSchema: unknown;
     toneProfile: unknown;
   },
-  options?: { validationError?: string },
+  options?: {
+    validationError?: string;
+    compiledBlueprint?: CompiledBlueprintResult;
+  },
 ): NexusNextStepResponse {
   const parsedCapturedData = capturedData
     ? stripSessionMeta(parseCapturedData(capturedData))
@@ -365,6 +370,7 @@ function createCompletedResponse(
         })
       : undefined,
     validationError: options?.validationError,
+    compiledBlueprint: options?.compiledBlueprint,
   });
 }
 
@@ -673,11 +679,14 @@ async function handleSessionAmendment(params: {
   });
 
   if (isMetaBlueprint(params.session.blueprint)) {
+    const storedCompiledBlueprint = parseSessionMeta(capturedData).compiledBlueprint;
+
     return createCompletedResponse(
       outcome.extractedData,
       [],
       capturedData,
       blueprint,
+      { compiledBlueprint: storedCompiledBlueprint },
     );
   }
 
@@ -737,6 +746,24 @@ async function buildValidationErrorResponse(
     }),
     missingFieldHints: buildMissingFieldHints(missingFields),
   });
+}
+
+async function markActiveSessionCompleted(
+  sessionId: string,
+  capturedData: Record<string, JsonValue>,
+): Promise<boolean> {
+  const result = await prisma.formSession.updateMany({
+    where: {
+      id: sessionId,
+      status: SessionStatus.ACTIVE,
+    },
+    data: {
+      capturedData,
+      status: SessionStatus.COMPLETED,
+    },
+  });
+
+  return result.count === 1;
 }
 
 function attachIntentGuidance(
@@ -918,6 +945,13 @@ export async function POST(request: Request) {
     }
 
     if (session.status === SessionStatus.COMPLETED) {
+      const blueprint = {
+        id: session.blueprintId,
+        label: session.blueprint.label,
+        targetSchema: session.blueprint.targetSchema,
+        toneProfile: session.blueprint.toneProfile,
+      };
+
       if (userInput && userInput.trim().length > 0) {
         return NextResponse.json(
           await handleSessionAmendment({
@@ -929,17 +963,30 @@ export async function POST(request: Request) {
         );
       }
 
+      const completedCapturedData = parseCapturedData(session.capturedData);
+      const storedCompiledBlueprint = isMetaBlueprint(session.blueprint)
+        ? parseSessionMeta(completedCapturedData).compiledBlueprint
+        : undefined;
+
+      if (isMetaBlueprint(session.blueprint) && !storedCompiledBlueprint) {
+        return NextResponse.json(
+          await buildCompletedResponse(
+            sessionId,
+            {},
+            completedCapturedData,
+            blueprint,
+            request,
+          ),
+        );
+      }
+
       return NextResponse.json(
         createCompletedResponse(
           {},
           [],
-          parseCapturedData(session.capturedData),
-          {
-            id: session.blueprintId,
-            label: session.blueprint.label,
-            targetSchema: session.blueprint.targetSchema,
-            toneProfile: session.blueprint.toneProfile,
-          },
+          completedCapturedData,
+          blueprint,
+          { compiledBlueprint: storedCompiledBlueprint },
         ),
       );
     }
@@ -1005,13 +1052,39 @@ export async function POST(request: Request) {
     targetSchema = buildEffectiveTargetSchema(blueprintSchema, sessionMeta);
 
     if (areAllRequiredFieldsSatisfied(targetSchema, capturedData)) {
-      await prisma.formSession.update({
-        where: { id: sessionId },
-        data: {
-          capturedData,
-          status: SessionStatus.COMPLETED,
-        },
-      });
+      const completedByThisRequest = await markActiveSessionCompleted(
+        sessionId,
+        capturedData,
+      );
+
+      if (!completedByThisRequest) {
+        const latestSession = await prisma.formSession.findUnique({
+          where: { id: sessionId },
+          include: { blueprint: true },
+        });
+        const latestCapturedData = latestSession
+          ? parseCapturedData(latestSession.capturedData)
+          : capturedData;
+        const storedCompiledBlueprint =
+          latestSession && isMetaBlueprint(latestSession.blueprint)
+            ? parseSessionMeta(latestCapturedData).compiledBlueprint
+            : undefined;
+
+        return NextResponse.json(
+          createCompletedResponse(
+            extractedData,
+            [],
+            latestCapturedData,
+            {
+              id: session.blueprintId,
+              label: session.blueprint.label,
+              targetSchema: session.blueprint.targetSchema,
+              toneProfile: session.blueprint.toneProfile,
+            },
+            { compiledBlueprint: storedCompiledBlueprint },
+          ),
+        );
+      }
 
       return NextResponse.json(
         await buildCompletedResponse(
@@ -1032,13 +1105,39 @@ export async function POST(request: Request) {
     const nextMissingField = getMissingFields(targetSchema, capturedData)[0];
 
     if (!nextMissingField) {
-      await prisma.formSession.update({
-        where: { id: sessionId },
-        data: {
-          capturedData,
-          status: SessionStatus.COMPLETED,
-        },
-      });
+      const completedByThisRequest = await markActiveSessionCompleted(
+        sessionId,
+        capturedData,
+      );
+
+      if (!completedByThisRequest) {
+        const latestSession = await prisma.formSession.findUnique({
+          where: { id: sessionId },
+          include: { blueprint: true },
+        });
+        const latestCapturedData = latestSession
+          ? parseCapturedData(latestSession.capturedData)
+          : capturedData;
+        const storedCompiledBlueprint =
+          latestSession && isMetaBlueprint(latestSession.blueprint)
+            ? parseSessionMeta(latestCapturedData).compiledBlueprint
+            : undefined;
+
+        return NextResponse.json(
+          createCompletedResponse(
+            extractedData,
+            [],
+            latestCapturedData,
+            {
+              id: session.blueprintId,
+              label: session.blueprint.label,
+              targetSchema: session.blueprint.targetSchema,
+              toneProfile: session.blueprint.toneProfile,
+            },
+            { compiledBlueprint: storedCompiledBlueprint },
+          ),
+        );
+      }
 
       return NextResponse.json(
         await buildCompletedResponse(
