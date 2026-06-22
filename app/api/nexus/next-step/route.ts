@@ -39,6 +39,7 @@ import {
   stripInvalidRequiredFieldValues,
   stripSessionMeta,
   NEXUS_META_KEY,
+  type JsonValue,
   type SchemaFieldDefinition,
   type SessionMeta,
   type TargetSchema,
@@ -749,7 +750,7 @@ async function buildValidationErrorResponse(
 
 async function markActiveSessionCompleted(
   sessionId: string,
-  capturedData: Record<string, unknown>,
+  capturedData: Record<string, JsonValue>,
 ): Promise<boolean> {
   const result = await prisma.formSession.updateMany({
     where: {
