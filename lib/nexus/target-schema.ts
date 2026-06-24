@@ -307,7 +307,7 @@ export function isFieldValuePresent(
   }
 
   if (isAgentSkippedFieldValue(value)) {
-    return true;
+    return options?.required === true ? false : true;
   }
 
   if (typeof value === "string") {
@@ -454,8 +454,8 @@ export function mergeCapturedData(
 
     if (
       requiredKeys?.has(fieldKey) &&
-      !isAgentSkippedFieldValue(fieldValue) &&
-      (fieldValue === null ||
+      (isAgentSkippedFieldValue(fieldValue) ||
+        fieldValue === null ||
         (typeof fieldValue === "string" &&
           (fieldValue.trim().length === 0 ||
             isSkippedPlaceholderValue(fieldValue) ||
@@ -484,11 +484,8 @@ export function stripInvalidRequiredFieldValues(
   for (const fieldKey of requiredKeys) {
     const value = cleaned[fieldKey];
 
-    if (isAgentSkippedFieldValue(value)) {
-      continue;
-    }
-
     if (
+      isAgentSkippedFieldValue(value) ||
       value === undefined ||
       value === null ||
       (typeof value === "string" &&
