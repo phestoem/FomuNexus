@@ -215,16 +215,18 @@ function enforceRequiredFieldIntegrity(
 function applyNotApplicableFields(
   notApplicableFields: Array<{ key: string; reason: string }> | undefined,
   missingFields: SchemaFieldDefinition[],
+  targetSchema: TargetSchema,
 ): {
   extractedData: Record<string, unknown>;
   agentSkippedFields: string[];
 } {
   const allowedKeys = new Set(missingFields.map((field) => field.key));
+  const requiredKeys = getRequiredFieldKeys(targetSchema);
   const extractedData: Record<string, unknown> = {};
   const agentSkippedFields: string[] = [];
 
   for (const entry of notApplicableFields ?? []) {
-    if (!allowedKeys.has(entry.key)) {
+    if (!allowedKeys.has(entry.key) || requiredKeys.has(entry.key)) {
       continue;
     }
 
@@ -268,6 +270,7 @@ function processExtractionResult(
   const notApplicableOutcome = applyNotApplicableFields(
     object.notApplicableFields,
     missingFields,
+    targetSchema,
   );
 
   return enforceRequiredFieldIntegrity(
@@ -472,7 +475,7 @@ async function extractDataFromUserInput(params: {
       "- This is an agent-driven relevance decision based on intent and context — not a user skip request and not a hardcoded rule.",
       "- If a field is flagged as NOT_APPLICABLE, add it to `notApplicableFields` with the field `key` and a concise `reason` explaining why it is contextually irrelevant.",
       "- Do not ask the user to confirm agent relevance decisions. The backend will store these as `{ \"status\": \"skipped_by_agent\", \"reason\": \"...\" }` and advance the session naturally.",
-      "- Agent relevance filtering may apply to any remaining missing field when genuinely warranted, even if the field appears in `targetSchema.required`.",
+      "- Agent relevance filtering may apply only to fields that are not listed in `targetSchema.required`.",
       "- Do not mark fields NOT_APPLICABLE unless the contextual mismatch is clear from `capturedData`. When in doubt, leave the field active.",
       "",
       "Skip / refusal handling (optional fields only, user-initiated):",
