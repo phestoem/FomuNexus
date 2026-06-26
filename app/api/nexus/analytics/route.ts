@@ -8,35 +8,17 @@ import { SessionStatus } from "@/app/generated/prisma/client";
 
 const OPENAI_MODEL = "gpt-4o-mini";
 
-async function resolveBlueprintId(id: string): Promise<{
-  blueprintId: string;
-  resolvedFromSessionId: boolean;
-} | null> {
+async function resolveBlueprintId(id: string): Promise<string | null> {
   const blueprint = await prisma.formBlueprint.findUnique({
     where: { id },
     select: { id: true },
   });
 
   if (blueprint) {
-    return {
-      blueprintId: blueprint.id,
-      resolvedFromSessionId: false,
-    };
+    return blueprint.id;
   }
 
-  const session = await prisma.formSession.findUnique({
-    where: { id },
-    select: { blueprintId: true },
-  });
-
-  if (!session) {
-    return null;
-  }
-
-  return {
-    blueprintId: session.blueprintId,
-    resolvedFromSessionId: true,
-  };
+  return null;
 }
 
 async function fetchBlueprintAnalyticsData(idOrBlueprintId: string) {
@@ -47,7 +29,7 @@ async function fetchBlueprintAnalyticsData(idOrBlueprintId: string) {
   }
 
   const blueprint = await prisma.formBlueprint.findUnique({
-    where: { id: resolved.blueprintId },
+    where: { id: resolved },
   });
 
   if (!blueprint) {
@@ -56,7 +38,7 @@ async function fetchBlueprintAnalyticsData(idOrBlueprintId: string) {
 
   const sessions = await prisma.formSession.findMany({
     where: {
-      blueprintId: resolved.blueprintId,
+      blueprintId: resolved,
       status: SessionStatus.COMPLETED,
     },
     orderBy: {
@@ -82,7 +64,6 @@ async function fetchBlueprintAnalyticsData(idOrBlueprintId: string) {
     },
     submissions,
     submissionCount: submissions.length,
-    resolvedFromSessionId: resolved.resolvedFromSessionId,
     inputId: idOrBlueprintId,
   };
 }
