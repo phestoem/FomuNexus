@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { NextRequest } from "next/server";
-import { hasValidAdminCredentials, isProtectedAdminPath, proxy } from "./proxy.ts";
+import { hasValidAdminCredentials, isProtectedAdminPath, proxy } from "./proxy";
 
 const ORIGINAL_ENV = {
   FOMU_NEXUS_ADMIN_USER: process.env.FOMU_NEXUS_ADMIN_USER,
@@ -19,7 +19,7 @@ function restoreEnv() {
   }
 }
 
-function withEnv(env, callback) {
+function withEnv(env: NodeJS.ProcessEnv, callback: () => void) {
   restoreEnv();
 
   for (const [key, value] of Object.entries(env)) {
@@ -31,17 +31,17 @@ function withEnv(env, callback) {
   }
 
   try {
-    return callback();
+    callback();
   } finally {
     restoreEnv();
   }
 }
 
-function basicAuth(username, password) {
+function basicAuth(username: string, password: string): string {
   return `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
 }
 
-function makeRequest(pathname, authorization) {
+function makeRequest(pathname: string, authorization?: string): NextRequest {
   const headers = new Headers();
 
   if (authorization) {
