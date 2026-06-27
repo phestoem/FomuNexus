@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { processCompletedSession } from "@/lib/nexus/action-router";
 import { buildBlueprintContext } from "@/lib/nexus/blueprint-context";
 import { buildMissingFieldHints } from "@/lib/nexus/intent-guidance";
+import { createCompletedResponse } from "@/lib/nexus/next-step-response";
 import { stripInternalCapturedKeys, isMetaBlueprint } from "@/lib/nexus/meta-blueprint-shared";
 import {
   extractionResultSchema,
@@ -12,7 +13,6 @@ import {
   nexusNextStepResponseSchema,
   questionGenerationResultSchema,
   toneProfileSchema,
-  type ActionExecuted,
   type NexusNextStepResponse,
 } from "@/lib/nexus/schemas";
 import {
@@ -334,40 +334,6 @@ function buildFallbackQuestion(field: SchemaFieldDefinition): string {
   return `Please provide ${field.key.replace(/_/g, " ")}.`;
 }
 
-function createCompletedResponse(
-  extractedData: Record<string, unknown> = {},
-  actionsExecuted: ActionExecuted[] = [],
-  capturedData?: Record<string, unknown>,
-  blueprint?: {
-    id: string;
-    label: string;
-    targetSchema: unknown;
-    toneProfile: unknown;
-  },
-  options?: { validationError?: string },
-): NexusNextStepResponse {
-  const parsedCapturedData = capturedData
-    ? stripSessionMeta(parseCapturedData(capturedData))
-    : undefined;
-
-  return nexusNextStepResponseSchema.parse({
-    extractedData,
-    isCompleted: true,
-    actionsExecuted,
-    capturedData: parsedCapturedData,
-    blueprintId: blueprint?.id,
-    blueprintContext: blueprint
-      ? buildBlueprintContext({
-          label: blueprint.label,
-          targetSchema: blueprint.targetSchema,
-          toneProfile: blueprint.toneProfile,
-          capturedData: parsedCapturedData,
-        })
-      : undefined,
-    validationError: options?.validationError,
-  });
-}
-
 async function buildCompletedResponse(
   sessionId: string,
   extractedData: Record<string, unknown>,
@@ -397,7 +363,6 @@ async function buildCompletedResponse(
         extractedData,
         isCompleted: true,
         capturedData: parsedCapturedData,
-        blueprintId: blueprint.id,
         blueprintContext,
         compiledBlueprint: result.compiledBlueprint,
         actionsExecuted: [],
@@ -1084,7 +1049,6 @@ export async function POST(request: Request) {
           skippedFields: skippedFields.length > 0 ? skippedFields : undefined,
           agentSkippedFields:
             agentSkippedFields.length > 0 ? agentSkippedFields : undefined,
-          blueprintId: session.blueprintId,
           blueprintContext: buildBlueprintContext({
             label: session.blueprint.label,
             targetSchema: session.blueprint.targetSchema,
