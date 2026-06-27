@@ -41,7 +41,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       sessionId: newSession.id,
-      blueprintId: existingSession.blueprintId,
       url: buildFormUrl(newSession.id, request),
     });
   } catch (error) {
