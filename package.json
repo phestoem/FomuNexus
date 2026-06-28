@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
+    "test": "node --test --experimental-strip-types lib/nexus/admin-basic-auth.test.ts",
     "lint": "eslint",
     "postinstall": "prisma generate"
   },
