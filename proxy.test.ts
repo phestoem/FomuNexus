@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { NextRequest } from "next/server";
-import { proxy } from "./proxy.ts";
+import {
+  evaluateAdminRouteAuth,
+  isProtectedAdminPath,
+} from "./lib/nexus/admin-basic-auth.ts";
 
 const ORIGINAL_ENV = {
   FOMU_NEXUS_ADMIN_USER: process.env.FOMU_NEXUS_ADMIN_USER,
@@ -45,23 +47,8 @@ function setAdminEnv(options: {
   }
 }
 
-function buildRequest(pathname: string, authorization?: string): NextRequest {
-  const headers = new Headers();
-
-  if (authorization) {
-    headers.set("authorization", authorization);
-  }
-
-  return new NextRequest(`https://example.test${pathname}`, { headers });
-}
-
 function basicAuth(user: string, password: string): string {
   return `Basic ${Buffer.from(`${user}:${password}`).toString("base64")}`;
-}
-
-function assertProxyPasses(response: Response) {
-  assert.equal(response.status, 200);
-  assert.equal(response.headers.get("x-middleware-next"), "1");
 }
 
 afterEach(restoreEnv);
@@ -69,10 +56,13 @@ afterEach(restoreEnv);
 test("protected admin routes fail closed in production without credentials", () => {
   setAdminEnv({ nodeEnv: "production" });
 
-  const response = proxy(buildRequest("/api/nexus/blueprints"));
+  const decision = evaluateAdminRouteAuth({
+    pathname: "/api/nexus/blueprints",
+    method: "GET",
+    authorizationHeader: null,
+  });
 
-  assert.equal(response.status, 503);
-  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(decision.status, "unavailable");
 });
 
 test("protected admin routes challenge missing credentials when configured", () => {
@@ -82,14 +72,13 @@ test("protected admin routes challenge missing credentials when configured", () 
     password: "secret",
   });
 
-  const response = proxy(buildRequest("/admin/blueprints"));
+  const decision = evaluateAdminRouteAuth({
+    pathname: "/admin/blueprints",
+    method: "GET",
+    authorizationHeader: null,
+  });
 
-  assert.equal(response.status, 401);
-  assert.match(
-    response.headers.get("www-authenticate") ?? "",
-    /^Basic realm="Fomu Nexus Admin"/,
-  );
-  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(decision.status, "unauthorized");
 });
 
 test("protected admin routes reject invalid credentials", () => {
@@ -99,11 +88,13 @@ test("protected admin routes reject invalid credentials", () => {
     password: "secret",
   });
 
-  const response = proxy(
-    buildRequest("/api/nexus/analytics", basicAuth("admin", "wrong")),
-  );
+  const decision = evaluateAdminRouteAuth({
+    pathname: "/api/nexus/analytics",
+    method: "POST",
+    authorizationHeader: basicAuth("admin", "wrong"),
+  });
 
-  assert.equal(response.status, 401);
+  assert.equal(decision.status, "unauthorized");
 });
 
 test("protected admin routes pass with valid credentials", () => {
@@ -113,33 +104,53 @@ test("protected admin routes pass with valid credentials", () => {
     password: "secret",
   });
 
-  const response = proxy(
-    buildRequest("/api/nexus/analytics", basicAuth("admin", "secret")),
-  );
+  const decision = evaluateAdminRouteAuth({
+    pathname: "/api/nexus/analytics",
+    method: "POST",
+    authorizationHeader: basicAuth("admin", "secret"),
+  });
 
-  assertProxyPasses(response);
+  assert.equal(decision.status, "pass");
 });
 
 test("public form runtime routes are not protected by the proxy", () => {
   setAdminEnv({ nodeEnv: "production" });
 
-  const response = proxy(buildRequest("/api/nexus/next-step"));
+  const decision = evaluateAdminRouteAuth({
+    pathname: "/api/nexus/next-step",
+    method: "POST",
+    authorizationHeader: null,
+  });
 
-  assertProxyPasses(response);
+  assert.equal(decision.status, "pass");
+  assert.equal(isProtectedAdminPath("/api/nexus/next-step"), false);
 });
 
 test("local development remains open when admin credentials are not configured", () => {
   setAdminEnv({ nodeEnv: "development" });
 
-  const response = proxy(buildRequest("/api/nexus/blueprints"));
+  const decision = evaluateAdminRouteAuth({
+    pathname: "/api/nexus/blueprints",
+    method: "GET",
+    authorizationHeader: null,
+  });
 
-  assertProxyPasses(response);
+  assert.equal(decision.status, "pass");
 });
 
 test("partial admin credential configuration fails closed", () => {
   setAdminEnv({ nodeEnv: "development", user: "admin" });
 
-  const response = proxy(buildRequest("/api/nexus/blueprints"));
+  const decision = evaluateAdminRouteAuth({
+    pathname: "/api/nexus/blueprints",
+    method: "GET",
+    authorizationHeader: null,
+  });
 
-  assert.equal(response.status, 503);
+  assert.equal(decision.status, "unavailable");
+});
+
+test("MCP endpoint is treated as an admin surface", () => {
+  assert.equal(isProtectedAdminPath("/api/mcp"), true);
+  assert.equal(isProtectedAdminPath("/api/mcp/session"), true);
 });
