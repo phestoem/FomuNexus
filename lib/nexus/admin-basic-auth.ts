@@ -82,8 +82,10 @@ export function evaluateAdminBasicAuth(input: AdminAuthInput): AdminAuthDecision
     return { action: "allow" };
   }
 
-  const hasUser = hasValue(input.adminUser);
-  const hasPassword = hasValue(input.adminPassword);
+  const adminUser = input.adminUser;
+  const adminPassword = input.adminPassword;
+  const hasUser = hasValue(adminUser);
+  const hasPassword = hasValue(adminPassword);
 
   if (!hasUser && !hasPassword && input.nodeEnv !== "production") {
     return { action: "allow" };
@@ -97,8 +99,6 @@ export function evaluateAdminBasicAuth(input: AdminAuthInput): AdminAuthDecision
     };
   }
 
-  const adminUser = input.adminUser;
-  const adminPassword = input.adminPassword;
   const credentials = decodeBasicAuth(input.authorizationHeader);
 
   if (
