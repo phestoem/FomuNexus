@@ -24,10 +24,15 @@ export async function POST(request: Request) {
       where: { id: parsedBody.data.sessionId },
       select: {
         blueprintId: true,
+        blueprint: {
+          select: {
+            archivedAt: true,
+          },
+        },
       },
     });
 
-    if (!existingSession) {
+    if (!existingSession || existingSession.blueprint.archivedAt) {
       return NextResponse.json({ error: "Session not found." }, { status: 404 });
     }
 
@@ -41,7 +46,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       sessionId: newSession.id,
-      blueprintId: existingSession.blueprintId,
       url: buildFormUrl(newSession.id, request),
     });
   } catch (error) {
