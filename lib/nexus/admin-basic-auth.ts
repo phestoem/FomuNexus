@@ -97,12 +97,14 @@ export function evaluateAdminBasicAuth(input: AdminAuthInput): AdminAuthDecision
     };
   }
 
+  const adminUser = input.adminUser;
+  const adminPassword = input.adminPassword;
   const credentials = decodeBasicAuth(input.authorizationHeader);
 
   if (
     credentials &&
-    constantTimeEqual(credentials.username, input.adminUser) &&
-    constantTimeEqual(credentials.password, input.adminPassword)
+    constantTimeEqual(credentials.username, adminUser) &&
+    constantTimeEqual(credentials.password, adminPassword)
   ) {
     return { action: "allow" };
   }
