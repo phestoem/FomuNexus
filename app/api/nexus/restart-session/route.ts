@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { META_BLUEPRINT_LABEL } from "@/lib/nexus/meta-blueprint-shared";
 import { restartSessionRequestSchema } from "@/lib/nexus/schemas";
 import { prisma } from "@/lib/prisma";
 import { SessionStatus } from "@/app/generated/prisma/client";
@@ -23,17 +24,27 @@ export async function POST(request: Request) {
     const existingSession = await prisma.formSession.findUnique({
       where: { id: parsedBody.data.sessionId },
       select: {
-        blueprintId: true,
+        blueprint: {
+          select: {
+            id: true,
+            label: true,
+            archivedAt: true,
+          },
+        },
       },
     });
 
-    if (!existingSession) {
+    if (
+      !existingSession ||
+      existingSession.blueprint.label === META_BLUEPRINT_LABEL ||
+      existingSession.blueprint.archivedAt
+    ) {
       return NextResponse.json({ error: "Session not found." }, { status: 404 });
     }
 
     const newSession = await prisma.formSession.create({
       data: {
-        blueprintId: existingSession.blueprintId,
+        blueprintId: existingSession.blueprint.id,
         capturedData: {},
         status: SessionStatus.ACTIVE,
       },
@@ -41,7 +52,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       sessionId: newSession.id,
-      blueprintId: existingSession.blueprintId,
       url: buildFormUrl(newSession.id, request),
     });
   } catch (error) {

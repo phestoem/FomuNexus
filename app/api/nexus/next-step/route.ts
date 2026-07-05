@@ -2,6 +2,10 @@ import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  createAdminAuthFailureResponse,
+  validateAdminBasicAuthHeader,
+} from "@/lib/nexus/admin-basic-auth";
 import { processCompletedSession } from "@/lib/nexus/action-router";
 import { buildBlueprintContext } from "@/lib/nexus/blueprint-context";
 import { buildMissingFieldHints } from "@/lib/nexus/intent-guidance";
@@ -355,7 +359,6 @@ function createCompletedResponse(
     isCompleted: true,
     actionsExecuted,
     capturedData: parsedCapturedData,
-    blueprintId: blueprint?.id,
     blueprintContext: blueprint
       ? buildBlueprintContext({
           label: blueprint.label,
@@ -397,7 +400,6 @@ async function buildCompletedResponse(
         extractedData,
         isCompleted: true,
         capturedData: parsedCapturedData,
-        blueprintId: blueprint.id,
         blueprintContext,
         compiledBlueprint: result.compiledBlueprint,
         actionsExecuted: [],
@@ -917,6 +919,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Session not found." }, { status: 404 });
     }
 
+    if (isMetaBlueprint(session.blueprint)) {
+      const authResult = validateAdminBasicAuthHeader(
+        request.headers.get("authorization"),
+      );
+
+      if (!authResult.authorized) {
+        return createAdminAuthFailureResponse(authResult);
+      }
+    }
+
     if (session.status === SessionStatus.COMPLETED) {
       if (userInput && userInput.trim().length > 0) {
         return NextResponse.json(
@@ -1084,7 +1096,6 @@ export async function POST(request: Request) {
           skippedFields: skippedFields.length > 0 ? skippedFields : undefined,
           agentSkippedFields:
             agentSkippedFields.length > 0 ? agentSkippedFields : undefined,
-          blueprintId: session.blueprintId,
           blueprintContext: buildBlueprintContext({
             label: session.blueprint.label,
             targetSchema: session.blueprint.targetSchema,
