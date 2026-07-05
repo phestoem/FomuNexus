@@ -28,7 +28,6 @@ type ListSort = "updated_desc" | "updated_asc" | "name_asc" | "name_desc";
 
 type StartSessionResponse = {
   sessionId: string;
-  blueprintId: string;
   label: string;
   url: string;
 };
