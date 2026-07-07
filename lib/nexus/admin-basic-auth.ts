@@ -99,7 +99,8 @@ export function getAdminAuthDecision(
   const credentials = decodeBasicCredentials(request.headers.get("authorization"));
 
   if (
-    credentials?.username === username &&
+    credentials &&
+    credentials.username === username &&
     credentials.password === password
   ) {
     return { ok: true };
