@@ -339,7 +339,6 @@ function createCompletedResponse(
   actionsExecuted: ActionExecuted[] = [],
   capturedData?: Record<string, unknown>,
   blueprint?: {
-    id: string;
     label: string;
     targetSchema: unknown;
     toneProfile: unknown;
@@ -355,7 +354,6 @@ function createCompletedResponse(
     isCompleted: true,
     actionsExecuted,
     capturedData: parsedCapturedData,
-    blueprintId: blueprint?.id,
     blueprintContext: blueprint
       ? buildBlueprintContext({
           label: blueprint.label,
@@ -617,7 +615,6 @@ async function handleSessionAmendment(params: {
   sessionId: string;
   userInput: string;
   session: {
-    blueprintId: string;
     capturedData: unknown;
     blueprint: {
       label: string;
@@ -643,7 +640,6 @@ async function handleSessionAmendment(params: {
   });
 
   const blueprint = {
-    id: params.session.blueprintId,
     label: params.session.blueprint.label,
     targetSchema: params.session.blueprint.targetSchema,
     toneProfile: params.session.blueprint.toneProfile,
@@ -935,7 +931,6 @@ export async function POST(request: Request) {
           [],
           parseCapturedData(session.capturedData),
           {
-            id: session.blueprintId,
             label: session.blueprint.label,
             targetSchema: session.blueprint.targetSchema,
             toneProfile: session.blueprint.toneProfile,
@@ -1084,7 +1079,6 @@ export async function POST(request: Request) {
           skippedFields: skippedFields.length > 0 ? skippedFields : undefined,
           agentSkippedFields:
             agentSkippedFields.length > 0 ? agentSkippedFields : undefined,
-          blueprintId: session.blueprintId,
           blueprintContext: buildBlueprintContext({
             label: session.blueprint.label,
             targetSchema: session.blueprint.targetSchema,

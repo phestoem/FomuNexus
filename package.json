@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
+    "test": "node --test --experimental-strip-types lib/nexus/admin-basic-auth.test.mjs",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate"
