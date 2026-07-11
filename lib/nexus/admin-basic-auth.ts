@@ -60,8 +60,10 @@ export function evaluateAdminBasicAuth(
     adminPassword: process.env.FOMU_NEXUS_ADMIN_PASSWORD,
   },
 ): AdminAuthDecision {
-  const hasUser = isConfigured(environment.adminUser);
-  const hasPassword = isConfigured(environment.adminPassword);
+  const adminUser = environment.adminUser;
+  const adminPassword = environment.adminPassword;
+  const hasUser = isConfigured(adminUser);
+  const hasPassword = isConfigured(adminPassword);
 
   if (!hasUser && !hasPassword) {
     if (environment.nodeEnv === "production") {
@@ -82,8 +84,8 @@ export function evaluateAdminBasicAuth(
   }
 
   if (
-    safeEqual(credentials.username, environment.adminUser) &&
-    safeEqual(credentials.password, environment.adminPassword)
+    safeEqual(credentials.username, adminUser) &&
+    safeEqual(credentials.password, adminPassword)
   ) {
     return { type: "allow", reason: "authenticated" };
   }
