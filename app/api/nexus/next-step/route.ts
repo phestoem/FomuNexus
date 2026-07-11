@@ -355,7 +355,6 @@ function createCompletedResponse(
     isCompleted: true,
     actionsExecuted,
     capturedData: parsedCapturedData,
-    blueprintId: blueprint?.id,
     blueprintContext: blueprint
       ? buildBlueprintContext({
           label: blueprint.label,
@@ -397,7 +396,6 @@ async function buildCompletedResponse(
         extractedData,
         isCompleted: true,
         capturedData: parsedCapturedData,
-        blueprintId: blueprint.id,
         blueprintContext,
         compiledBlueprint: result.compiledBlueprint,
         actionsExecuted: [],
@@ -1084,7 +1082,6 @@ export async function POST(request: Request) {
           skippedFields: skippedFields.length > 0 ? skippedFields : undefined,
           agentSkippedFields:
             agentSkippedFields.length > 0 ? agentSkippedFields : undefined,
-          blueprintId: session.blueprintId,
           blueprintContext: buildBlueprintContext({
             label: session.blueprint.label,
             targetSchema: session.blueprint.targetSchema,
