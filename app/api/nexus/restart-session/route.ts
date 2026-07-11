@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isProtectedBlueprint } from "@/lib/nexus/blueprint-management";
 import { restartSessionRequestSchema } from "@/lib/nexus/schemas";
 import { prisma } from "@/lib/prisma";
 import { SessionStatus } from "@/app/generated/prisma/client";
@@ -24,10 +25,20 @@ export async function POST(request: Request) {
       where: { id: parsedBody.data.sessionId },
       select: {
         blueprintId: true,
+        blueprint: {
+          select: {
+            label: true,
+            archivedAt: true,
+          },
+        },
       },
     });
 
-    if (!existingSession) {
+    if (
+      !existingSession ||
+      isProtectedBlueprint(existingSession.blueprint.label) ||
+      existingSession.blueprint.archivedAt
+    ) {
       return NextResponse.json({ error: "Session not found." }, { status: 404 });
     }
 
@@ -41,7 +52,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       sessionId: newSession.id,
-      blueprintId: existingSession.blueprintId,
       url: buildFormUrl(newSession.id, request),
     });
   } catch (error) {

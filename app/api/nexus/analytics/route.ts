@@ -24,19 +24,7 @@ async function resolveBlueprintId(id: string): Promise<{
     };
   }
 
-  const session = await prisma.formSession.findUnique({
-    where: { id },
-    select: { blueprintId: true },
-  });
-
-  if (!session) {
-    return null;
-  }
-
-  return {
-    blueprintId: session.blueprintId,
-    resolvedFromSessionId: true,
-  };
+  return null;
 }
 
 async function fetchBlueprintAnalyticsData(idOrBlueprintId: string) {
