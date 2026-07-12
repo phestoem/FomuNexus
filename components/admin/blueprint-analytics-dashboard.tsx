@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import {
   formatCapturedValue,
@@ -26,8 +26,6 @@ type AnalyticsDataResponse = {
   };
   submissions: SubmissionRecord[];
   submissionCount: number;
-  resolvedFromSessionId?: boolean;
-  inputId?: string;
 };
 
 type AnalyticsAnalysisResponse = {
@@ -89,19 +87,14 @@ function SubmissionSummary({
 
 export function BlueprintAnalyticsDashboard() {
   const params = useParams<{ blueprintId: string }>();
-  const router = useRouter();
   const blueprintId = params.blueprintId;
 
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [blueprintLabel, setBlueprintLabel] = useState("Form Blueprint");
-  const [resolvedBlueprintId, setResolvedBlueprintId] = useState<string | null>(
-    null,
-  );
   const [submissions, setSubmissions] = useState<SubmissionRecord[]>([]);
   const [showRawPayloads, setShowRawPayloads] = useState(false);
 
@@ -134,17 +127,7 @@ export function BlueprintAnalyticsDashboard() {
 
         if (!cancelled) {
           setBlueprintLabel(payload.blueprint.label);
-          setResolvedBlueprintId(payload.blueprint.id);
           setSubmissions(payload.submissions);
-
-          if (payload.resolvedFromSessionId) {
-            setNotice(
-              "That URL used a form session ID. We resolved the parent blueprint automatically.",
-            );
-            router.replace(
-              `/admin/blueprints/${payload.blueprint.id}/analytics`,
-            );
-          }
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -166,7 +149,7 @@ export function BlueprintAnalyticsDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [blueprintId, router]);
+  }, [blueprintId]);
 
   async function handleAnalyze(event: React.FormEvent) {
     event.preventDefault();
@@ -184,7 +167,7 @@ export function BlueprintAnalyticsDashboard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          blueprintId: resolvedBlueprintId ?? blueprintId,
+          blueprintId,
           query: query.trim(),
         }),
       });
@@ -279,7 +262,6 @@ export function BlueprintAnalyticsDashboard() {
           </form>
 
           {error ? <p className={styles.error}>{error}</p> : null}
-          {notice ? <p className={styles.notice}>{notice}</p> : null}
 
           {loading ? (
             <div className={styles.loadingCard}>
