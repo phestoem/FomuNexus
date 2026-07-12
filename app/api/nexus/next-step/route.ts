@@ -175,16 +175,28 @@ function enforceRequiredFieldIntegrity(
     };
   }
 
+  const illegalAgentSkips = outcome.agentSkippedFields.filter((key) =>
+    requiredKeys.has(key),
+  );
+  if (illegalAgentSkips.length > 0) {
+    const blockedKey = illegalAgentSkips[0];
+    return {
+      extractedData: {},
+      skippedFields: [],
+      agentSkippedFields: [],
+      validationError: buildRequiredFieldValidationError(
+        blockedKey,
+        missingFieldMap.get(blockedKey),
+      ),
+    };
+  }
+
   const sanitizedExtractedData: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(outcome.extractedData)) {
-    if (isAgentSkippedFieldValue(value)) {
-      sanitizedExtractedData[key] = value;
-      continue;
-    }
-
     if (
       requiredKeys.has(key) &&
-      (value === null ||
+      (isAgentSkippedFieldValue(value) ||
+        value === null ||
         value === undefined ||
         (typeof value === "string" &&
           (value.trim().length === 0 ||
@@ -195,6 +207,11 @@ function enforceRequiredFieldIntegrity(
     }
 
     if (isPollutedFieldValue(value)) {
+      continue;
+    }
+
+    if (isAgentSkippedFieldValue(value)) {
+      sanitizedExtractedData[key] = value;
       continue;
     }
 
@@ -355,7 +372,6 @@ function createCompletedResponse(
     isCompleted: true,
     actionsExecuted,
     capturedData: parsedCapturedData,
-    blueprintId: blueprint?.id,
     blueprintContext: blueprint
       ? buildBlueprintContext({
           label: blueprint.label,
@@ -397,7 +413,6 @@ async function buildCompletedResponse(
         extractedData,
         isCompleted: true,
         capturedData: parsedCapturedData,
-        blueprintId: blueprint.id,
         blueprintContext,
         compiledBlueprint: result.compiledBlueprint,
         actionsExecuted: [],
@@ -1084,7 +1099,6 @@ export async function POST(request: Request) {
           skippedFields: skippedFields.length > 0 ? skippedFields : undefined,
           agentSkippedFields:
             agentSkippedFields.length > 0 ? agentSkippedFields : undefined,
-          blueprintId: session.blueprintId,
           blueprintContext: buildBlueprintContext({
             label: session.blueprint.label,
             targetSchema: session.blueprint.targetSchema,
