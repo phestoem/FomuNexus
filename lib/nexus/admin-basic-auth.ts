@@ -7,6 +7,14 @@ export type AdminAuthDecision =
 export const ADMIN_AUTH_USER_ENV = "FOMU_NEXUS_ADMIN_USER";
 export const ADMIN_AUTH_PASSWORD_ENV = "FOMU_NEXUS_ADMIN_PASSWORD";
 
+type AdminAuthEnv = Pick<NodeJS.ProcessEnv, "NODE_ENV"> &
+  Partial<
+    Record<
+      typeof ADMIN_AUTH_USER_ENV | typeof ADMIN_AUTH_PASSWORD_ENV,
+      string
+    >
+  >;
+
 function hasValue(value: string | undefined): value is string {
   return typeof value === "string" && value.length > 0;
 }
@@ -57,9 +65,7 @@ function constantTimeEqual(left: string, right: string): boolean {
 
 export function evaluateAdminBasicAuth(
   authorization: string | null,
-  env: Pick<NodeJS.ProcessEnv, "NODE_ENV"> &
-    Record<typeof ADMIN_AUTH_USER_ENV | typeof ADMIN_AUTH_PASSWORD_ENV, string | undefined> =
-    process.env,
+  env: AdminAuthEnv = process.env,
 ): AdminAuthDecision {
   const configuredUser = env[ADMIN_AUTH_USER_ENV];
   const configuredPassword = env[ADMIN_AUTH_PASSWORD_ENV];
