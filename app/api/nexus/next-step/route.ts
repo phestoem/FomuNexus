@@ -178,6 +178,10 @@ function enforceRequiredFieldIntegrity(
   const sanitizedExtractedData: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(outcome.extractedData)) {
     if (isAgentSkippedFieldValue(value)) {
+      if (requiredKeys.has(key)) {
+        continue;
+      }
+
       sanitizedExtractedData[key] = value;
       continue;
     }
@@ -204,11 +208,14 @@ function enforceRequiredFieldIntegrity(
   const allowedSkippedFields = outcome.skippedFields.filter(
     (key) => !requiredKeys.has(key),
   );
+  const allowedAgentSkippedFields = outcome.agentSkippedFields.filter(
+    (key) => !requiredKeys.has(key),
+  );
 
   return {
     extractedData: sanitizedExtractedData,
     skippedFields: allowedSkippedFields,
-    agentSkippedFields: outcome.agentSkippedFields,
+    agentSkippedFields: allowedAgentSkippedFields,
   };
 }
 
@@ -355,7 +362,6 @@ function createCompletedResponse(
     isCompleted: true,
     actionsExecuted,
     capturedData: parsedCapturedData,
-    blueprintId: blueprint?.id,
     blueprintContext: blueprint
       ? buildBlueprintContext({
           label: blueprint.label,
@@ -397,7 +403,6 @@ async function buildCompletedResponse(
         extractedData,
         isCompleted: true,
         capturedData: parsedCapturedData,
-        blueprintId: blueprint.id,
         blueprintContext,
         compiledBlueprint: result.compiledBlueprint,
         actionsExecuted: [],
@@ -1084,7 +1089,6 @@ export async function POST(request: Request) {
           skippedFields: skippedFields.length > 0 ? skippedFields : undefined,
           agentSkippedFields:
             agentSkippedFields.length > 0 ? agentSkippedFields : undefined,
-          blueprintId: session.blueprintId,
           blueprintContext: buildBlueprintContext({
             label: session.blueprint.label,
             targetSchema: session.blueprint.targetSchema,
