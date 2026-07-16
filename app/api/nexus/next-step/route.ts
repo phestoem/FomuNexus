@@ -42,6 +42,10 @@ import {
   type SessionMeta,
   type TargetSchema,
 } from "@/lib/nexus/target-schema";
+import {
+  applySessionRevisionWrite,
+  SessionWriteConflictError,
+} from "@/lib/nexus/session-write-guard";
 import { SessionStatus } from "@/app/generated/prisma/client";
 
 const OPENAI_MODEL = "gpt-4o-mini";
@@ -52,6 +56,29 @@ type ExtractionOutcome = {
   agentSkippedFields: string[];
   validationError?: string;
 };
+
+async function persistSessionState(params: {
+  sessionId: string;
+  revision: number;
+  expectedStatus: SessionStatus;
+  capturedData: Record<string, unknown>;
+  nextStatus?: SessionStatus;
+}): Promise<number> {
+  return applySessionRevisionWrite(params.revision, () =>
+    prisma.formSession.updateMany({
+      where: {
+        id: params.sessionId,
+        revision: params.revision,
+        status: params.expectedStatus,
+      },
+      data: {
+        capturedData: params.capturedData,
+        revision: { increment: 1 },
+        ...(params.nextStatus ? { status: params.nextStatus } : {}),
+      },
+    }),
+  );
+}
 
 function fieldsToRecord(
   fields: Array<{ key: string; value: string | number | boolean | null }>,
@@ -619,6 +646,7 @@ async function handleSessionAmendment(params: {
   session: {
     blueprintId: string;
     capturedData: unknown;
+    revision: number;
     blueprint: {
       label: string;
       targetSchema: unknown;
@@ -667,9 +695,11 @@ async function handleSessionAmendment(params: {
     sessionMeta,
   );
 
-  await prisma.formSession.update({
-    where: { id: params.sessionId },
-    data: { capturedData },
+  await persistSessionState({
+    sessionId: params.sessionId,
+    revision: params.session.revision,
+    expectedStatus: SessionStatus.COMPLETED,
+    capturedData,
   });
 
   if (isMetaBlueprint(params.session.blueprint)) {
@@ -951,6 +981,7 @@ export async function POST(request: Request) {
     let extractedData: Record<string, unknown> = {};
     let skippedFields: string[] = [];
     let agentSkippedFields: string[] = [];
+    let sessionRevision = session.revision;
 
     if (userInput && userInput.trim().length > 0) {
       const missingFieldsBeforeExtraction = getMissingFields(
@@ -995,9 +1026,11 @@ export async function POST(request: Request) {
           sessionMeta,
         );
 
-        await prisma.formSession.update({
-          where: { id: sessionId },
-          data: { capturedData },
+        sessionRevision = await persistSessionState({
+          sessionId,
+          revision: sessionRevision,
+          expectedStatus: SessionStatus.ACTIVE,
+          capturedData,
         });
       }
     }
@@ -1005,12 +1038,12 @@ export async function POST(request: Request) {
     targetSchema = buildEffectiveTargetSchema(blueprintSchema, sessionMeta);
 
     if (areAllRequiredFieldsSatisfied(targetSchema, capturedData)) {
-      await prisma.formSession.update({
-        where: { id: sessionId },
-        data: {
-          capturedData,
-          status: SessionStatus.COMPLETED,
-        },
+      await persistSessionState({
+        sessionId,
+        revision: sessionRevision,
+        expectedStatus: SessionStatus.ACTIVE,
+        capturedData,
+        nextStatus: SessionStatus.COMPLETED,
       });
 
       return NextResponse.json(
@@ -1032,12 +1065,12 @@ export async function POST(request: Request) {
     const nextMissingField = getMissingFields(targetSchema, capturedData)[0];
 
     if (!nextMissingField) {
-      await prisma.formSession.update({
-        where: { id: sessionId },
-        data: {
-          capturedData,
-          status: SessionStatus.COMPLETED,
-        },
+      await persistSessionState({
+        sessionId,
+        revision: sessionRevision,
+        expectedStatus: SessionStatus.ACTIVE,
+        capturedData,
+        nextStatus: SessionStatus.COMPLETED,
       });
 
       return NextResponse.json(
@@ -1070,9 +1103,11 @@ export async function POST(request: Request) {
     capturedData = questionResult.capturedData;
 
     if (sessionMeta.injectedFields.length > 0) {
-      await prisma.formSession.update({
-        where: { id: sessionId },
-        data: { capturedData },
+      await persistSessionState({
+        sessionId,
+        revision: sessionRevision,
+        expectedStatus: SessionStatus.ACTIVE,
+        capturedData,
       });
     }
 
@@ -1097,6 +1132,16 @@ export async function POST(request: Request) {
       ),
     );
   } catch (error) {
+    if (error instanceof SessionWriteConflictError) {
+      return NextResponse.json(
+        {
+          error:
+            "This intake session changed while your answer was being processed. Please refresh and submit it again.",
+        },
+        { status: 409 },
+      );
+    }
+
     console.error("Nexus next-step orchestration failed:", error);
     return NextResponse.json(
       { error: "Failed to process the next intake step." },
