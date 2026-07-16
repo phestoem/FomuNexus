@@ -46,7 +46,7 @@ import {
   applySessionRevisionWrite,
   SessionWriteConflictError,
 } from "@/lib/nexus/session-write-guard";
-import { SessionStatus } from "@/app/generated/prisma/client";
+import { Prisma, SessionStatus } from "@/app/generated/prisma/client";
 
 const OPENAI_MODEL = "gpt-4o-mini";
 
@@ -72,7 +72,7 @@ async function persistSessionState(params: {
         status: params.expectedStatus,
       },
       data: {
-        capturedData: params.capturedData,
+        capturedData: params.capturedData as Prisma.InputJsonValue,
         revision: { increment: 1 },
         ...(params.nextStatus ? { status: params.nextStatus } : {}),
       },
