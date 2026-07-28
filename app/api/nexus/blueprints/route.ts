@@ -4,6 +4,7 @@ import {
   buildBlueprintListWhere,
   isProtectedBlueprint,
 } from "@/lib/nexus/blueprint-management";
+import { reconcileReservedBlueprintLabelCollisions } from "@/lib/nexus/meta-blueprint";
 import {
   listBlueprintsQuerySchema,
   manageBlueprintsRequestSchema,
@@ -39,6 +40,8 @@ function mapBlueprintSummary(
 
 export async function GET(request: Request) {
   try {
+    await reconcileReservedBlueprintLabelCollisions();
+
     const { searchParams } = new URL(request.url);
     const parsedQuery = listBlueprintsQuerySchema.safeParse({
       q: searchParams.get("q") ?? undefined,
@@ -116,13 +119,15 @@ export async function POST(request: Request) {
     const { action, blueprintIds } = parsedBody.data;
     const uniqueIds = [...new Set(blueprintIds)];
 
+    await reconcileReservedBlueprintLabelCollisions();
+
     const blueprints = await prisma.formBlueprint.findMany({
       where: { id: { in: uniqueIds } },
-      select: { id: true, label: true },
+      select: { id: true, label: true, targetSchema: true },
     });
 
     const manageable = blueprints.filter(
-      (blueprint) => !isProtectedBlueprint(blueprint.label),
+      (blueprint) => !isProtectedBlueprint(blueprint),
     );
     const manageableIds = manageable.map((blueprint) => blueprint.id);
 

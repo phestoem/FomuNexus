@@ -18,7 +18,7 @@ export function buildBlueprintContext(params: {
 }): BlueprintContext {
   const capturedData = params.capturedData ?? {};
 
-  if (isMetaBlueprint({ label: params.label })) {
+  if (isMetaBlueprint({ label: params.label, targetSchema: params.targetSchema })) {
     const workingTitle = capturedData[CREATOR_WORKING_TITLE_KEY];
     const roughIdea = capturedData[INITIAL_ROUGH_IDEA_KEY];
 

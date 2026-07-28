@@ -5,11 +5,14 @@ import {
   validateGeneratedBlueprint,
 } from "@/lib/nexus/blueprint-builder";
 import {
+  buildConflictingBlueprintLabel,
   CREATOR_WORKING_TITLE_KEY,
   INITIAL_ROUGH_IDEA_KEY,
+  matchesMetaTargetSchema,
   META_BLUEPRINT_LABEL,
   META_TARGET_SCHEMA,
   META_TONE_PROFILE,
+  resolveAssignableBlueprintLabel,
   stripInternalCapturedKeys,
 } from "@/lib/nexus/meta-blueprint-shared";
 import {
@@ -28,22 +31,54 @@ import { SessionStatus } from "@/app/generated/prisma/client";
 const OPENAI_MODEL = "gpt-4o-mini";
 
 export {
+  assertAssignableBlueprintLabel,
+  buildConflictingBlueprintLabel,
   CREATOR_WORKING_TITLE_KEY,
   INITIAL_ROUGH_IDEA_KEY,
   isMetaBlueprint,
+  isReservedBlueprintLabel,
+  matchesMetaTargetSchema,
   META_BLUEPRINT_LABEL,
   META_TARGET_SCHEMA,
   META_TONE_PROFILE,
+  resolveAssignableBlueprintLabel,
   stripInternalCapturedKeys,
 } from "@/lib/nexus/meta-blueprint-shared";
 
-export async function ensureMetaBlueprint() {
-  const existing = await prisma.formBlueprint.findFirst({
+export async function reconcileReservedBlueprintLabelCollisions() {
+  const candidates = await prisma.formBlueprint.findMany({
     where: { label: META_BLUEPRINT_LABEL },
+    orderBy: { createdAt: "asc" },
   });
 
-  if (existing) {
-    return existing;
+  const metaMatches: typeof candidates = [];
+  const impostors: typeof candidates = [];
+
+  for (const blueprint of candidates) {
+    if (matchesMetaTargetSchema(blueprint.targetSchema)) {
+      metaMatches.push(blueprint);
+    } else {
+      impostors.push(blueprint);
+    }
+  }
+
+  for (const impostor of impostors) {
+    await prisma.formBlueprint.update({
+      where: { id: impostor.id },
+      data: {
+        label: buildConflictingBlueprintLabel(impostor.label, impostor.id),
+      },
+    });
+  }
+
+  return metaMatches;
+}
+
+export async function ensureMetaBlueprint() {
+  const metaMatches = await reconcileReservedBlueprintLabelCollisions();
+
+  if (metaMatches.length > 0) {
+    return metaMatches[0];
   }
 
   return prisma.formBlueprint.create({
@@ -119,13 +154,15 @@ export function buildCreatorBrief(
 
 function buildCompiledBlueprintLabel(brief: Record<string, string>): string {
   if (brief.working_title) {
-    return brief.working_title;
+    return resolveAssignableBlueprintLabel(brief.working_title);
   }
 
   if (brief.primary_goal) {
-    return brief.primary_goal.length > 80
-      ? `${brief.primary_goal.slice(0, 77)}...`
-      : brief.primary_goal;
+    const primaryGoalLabel =
+      brief.primary_goal.length > 80
+        ? `${brief.primary_goal.slice(0, 77)}...`
+        : brief.primary_goal;
+    return resolveAssignableBlueprintLabel(primaryGoalLabel);
   }
 
   return "Untitled Intake Form";

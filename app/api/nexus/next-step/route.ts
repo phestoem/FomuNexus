@@ -773,7 +773,10 @@ async function generateNextStepQuestion(params: {
   capturedData: ReturnType<typeof parseCapturedData>;
 }> {
   const capturedDataRecord = parseCapturedData(params.capturedData);
-  const isCreatorCopilot = isMetaBlueprint({ label: params.blueprintLabel });
+  const isCreatorCopilot = isMetaBlueprint({
+    label: params.blueprintLabel,
+    targetSchema: params.blueprintSchema,
+  });
   const promptLines = [
       "You generate one concise intake question for the next missing schema field in a dynamic form.",
       "The question must sound natural, contextual, and aligned with the tone profile.",

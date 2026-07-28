@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isProtectedBlueprint } from "@/lib/nexus/blueprint-management";
+import { reconcileReservedBlueprintLabelCollisions } from "@/lib/nexus/meta-blueprint";
 import { updateBlueprintRequestSchema } from "@/lib/nexus/schemas";
 import { prisma } from "@/lib/prisma";
 
@@ -20,12 +21,14 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
+    await reconcileReservedBlueprintLabelCollisions();
+
     const blueprint = await prisma.formBlueprint.findUnique({
       where: { id: blueprintId },
-      select: { id: true, label: true },
+      select: { id: true, label: true, targetSchema: true },
     });
 
-    if (!blueprint || isProtectedBlueprint(blueprint.label)) {
+    if (!blueprint || isProtectedBlueprint(blueprint)) {
       return NextResponse.json({ error: "Form not found." }, { status: 404 });
     }
 
@@ -62,12 +65,14 @@ export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const { blueprintId } = await context.params;
 
+    await reconcileReservedBlueprintLabelCollisions();
+
     const blueprint = await prisma.formBlueprint.findUnique({
       where: { id: blueprintId },
-      select: { id: true, label: true },
+      select: { id: true, label: true, targetSchema: true },
     });
 
-    if (!blueprint || isProtectedBlueprint(blueprint.label)) {
+    if (!blueprint || isProtectedBlueprint(blueprint)) {
       return NextResponse.json({ error: "Form not found." }, { status: 404 });
     }
 

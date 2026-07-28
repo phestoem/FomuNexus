@@ -1,8 +1,15 @@
-import { stripSessionMeta, type JsonValue, type TargetSchema } from "@/lib/nexus/target-schema";
+import {
+  parseTargetSchema,
+  stripSessionMeta,
+  type JsonValue,
+  type TargetSchema,
+} from "@/lib/nexus/target-schema";
 
 export const META_BLUEPRINT_LABEL = "__internal_creator_copilot__";
 export const CREATOR_WORKING_TITLE_KEY = "_creator_working_title";
 export const INITIAL_ROUGH_IDEA_KEY = "initial_rough_idea";
+export const RESERVED_BLUEPRINT_LABEL_ERROR =
+  "This form title is reserved by the system. Choose a different title.";
 
 export const META_DATA_STRICTNESS_OPTIONS = [
   "Strict and quantitative",
@@ -60,8 +67,76 @@ export const META_TONE_PROFILE = {
     "Collaborative, expert, and concise. Help the creator refine fuzzy goals into a sharp intake strategy. Acknowledge their rough ideas, ask clarifying follow-ups, and offer brief structural suggestions when helpful. Never feel like a static form — feel like a thoughtful partner.",
 };
 
-export function isMetaBlueprint(blueprint: Pick<{ label: string }, "label">): boolean {
-  return blueprint.label === META_BLUEPRINT_LABEL;
+export function matchesMetaTargetSchema(targetSchema: unknown): boolean {
+  const schema = parseTargetSchema(targetSchema);
+  const requiredKeys = new Set(schema.required ?? []);
+  const properties = schema.properties ?? {};
+  const metaRequired = META_TARGET_SCHEMA.required ?? [];
+
+  return metaRequired.every((key) => {
+    return requiredKeys.has(key) && properties[key] != null;
+  });
+}
+
+export function isReservedBlueprintLabel(label: string): boolean {
+  return label.trim() === META_BLUEPRINT_LABEL;
+}
+
+export function assertAssignableBlueprintLabel(label: string): string {
+  const trimmed = label.trim();
+
+  if (trimmed.length === 0) {
+    throw new Error("Form title is required.");
+  }
+
+  if (isReservedBlueprintLabel(trimmed)) {
+    throw new Error(RESERVED_BLUEPRINT_LABEL_ERROR);
+  }
+
+  return trimmed;
+}
+
+export function resolveAssignableBlueprintLabel(
+  label: string,
+  fallback = "Untitled Intake Form",
+): string {
+  const trimmed = label.trim();
+
+  if (trimmed.length === 0 || isReservedBlueprintLabel(trimmed)) {
+    return fallback;
+  }
+
+  return trimmed;
+}
+
+export function buildConflictingBlueprintLabel(
+  label: string,
+  blueprintId: string,
+): string {
+  const suffix = blueprintId.slice(-6);
+  const base = label.trim().length > 0 ? label.trim() : "Untitled Intake Form";
+  const renamed = `${base} (recovered ${suffix})`;
+
+  if (!isReservedBlueprintLabel(renamed)) {
+    return renamed;
+  }
+
+  return `Recovered intake form (${suffix})`;
+}
+
+export function isMetaBlueprint(blueprint: {
+  label: string;
+  targetSchema?: unknown;
+}): boolean {
+  if (blueprint.label !== META_BLUEPRINT_LABEL) {
+    return false;
+  }
+
+  if (blueprint.targetSchema === undefined) {
+    return true;
+  }
+
+  return matchesMetaTargetSchema(blueprint.targetSchema);
 }
 
 export function stripInternalCapturedKeys(
