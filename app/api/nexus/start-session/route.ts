@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { META_BLUEPRINT_LABEL } from "@/lib/nexus/meta-blueprint-shared";
+import { META_BLUEPRINT_LABEL, matchesMetaTargetSchema } from "@/lib/nexus/meta-blueprint-shared";
 import { startSessionRequestSchema } from "@/lib/nexus/schemas";
 import { prisma } from "@/lib/prisma";
 import { SessionStatus } from "@/app/generated/prisma/client";
@@ -27,12 +27,14 @@ export async function POST(request: Request) {
         id: true,
         label: true,
         archivedAt: true,
+        targetSchema: true,
       },
     });
 
     if (
       !blueprint ||
-      blueprint.label === META_BLUEPRINT_LABEL ||
+      (blueprint.label === META_BLUEPRINT_LABEL &&
+        matchesMetaTargetSchema(blueprint.targetSchema)) ||
       blueprint.archivedAt
     ) {
       return NextResponse.json({ error: "Form not found." }, { status: 404 });

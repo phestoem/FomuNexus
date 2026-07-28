@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  assertAssignableBlueprintLabel,
   CREATOR_WORKING_TITLE_KEY,
   ensureMetaBlueprint,
   INITIAL_ROUGH_IDEA_KEY,
@@ -20,7 +21,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const { title, roughIdea } = parsedBody.data;
+    const title = assertAssignableBlueprintLabel(parsedBody.data.title);
+    const roughIdea = parsedBody.data.roughIdea.trim();
     const metaBlueprint = await ensureMetaBlueprint();
 
     const session = await prisma.formSession.create({
@@ -28,8 +30,8 @@ export async function POST(request: Request) {
         blueprintId: metaBlueprint.id,
         status: SessionStatus.ACTIVE,
         capturedData: {
-          [CREATOR_WORKING_TITLE_KEY]: title.trim(),
-          [INITIAL_ROUGH_IDEA_KEY]: roughIdea.trim(),
+          [CREATOR_WORKING_TITLE_KEY]: title,
+          [INITIAL_ROUGH_IDEA_KEY]: roughIdea,
         },
       },
     });

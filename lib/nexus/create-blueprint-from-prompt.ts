@@ -4,6 +4,7 @@ import {
   buildTargetSchemaFromFields,
   validateGeneratedBlueprint,
 } from "@/lib/nexus/blueprint-builder";
+import { assertAssignableBlueprintLabel } from "@/lib/nexus/meta-blueprint-shared";
 import {
   generatedBlueprintSchema,
   targetSchemaDefinitionSchema,
@@ -45,7 +46,8 @@ export async function createBlueprintFromPrompt(
     throw new Error("OPENAI_API_KEY is not configured.");
   }
 
-  const { title, prompt } = input;
+  const title = assertAssignableBlueprintLabel(input.title);
+  const prompt = input.prompt;
 
   const { object } = await generateObject({
     model: openai(OPENAI_MODEL),

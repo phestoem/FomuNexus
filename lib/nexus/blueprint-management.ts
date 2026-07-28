@@ -1,5 +1,8 @@
 import type { Prisma } from "@/app/generated/prisma/client";
-import { META_BLUEPRINT_LABEL } from "@/lib/nexus/meta-blueprint-shared";
+import {
+  isMetaBlueprint,
+  META_BLUEPRINT_LABEL,
+} from "@/lib/nexus/meta-blueprint-shared";
 import type { listBlueprintsQuerySchema } from "@/lib/nexus/schemas";
 import type { z } from "zod";
 
@@ -48,6 +51,9 @@ export function buildBlueprintListOrderBy(
   }
 }
 
-export function isProtectedBlueprint(label: string): boolean {
-  return label === META_BLUEPRINT_LABEL;
+export function isProtectedBlueprint(blueprint: {
+  label: string;
+  targetSchema?: unknown;
+}): boolean {
+  return isMetaBlueprint(blueprint);
 }
