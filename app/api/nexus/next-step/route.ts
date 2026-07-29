@@ -5,7 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { processCompletedSession } from "@/lib/nexus/action-router";
 import { buildBlueprintContext } from "@/lib/nexus/blueprint-context";
 import { buildMissingFieldHints } from "@/lib/nexus/intent-guidance";
-import { stripInternalCapturedKeys, isMetaBlueprint } from "@/lib/nexus/meta-blueprint-shared";
+import {
+  buildQuestionPromptCapturedData,
+  stripInternalCapturedKeys,
+  isMetaBlueprint,
+} from "@/lib/nexus/meta-blueprint-shared";
 import {
   extractionResultSchema,
   nexusNextStepRequestSchema,
@@ -812,7 +816,13 @@ async function generateNextStepQuestion(params: {
       "",
       `Blueprint field definition:\n${buildFieldSummary(params.field)}`,
       "",
-      `Captured data so far:\n${JSON.stringify(stripInternalCapturedKeys(capturedDataRecord), null, 2)}`,
+      `Captured data so far:\n${JSON.stringify(
+        buildQuestionPromptCapturedData(capturedDataRecord, {
+          includeCreatorContext: isCreatorCopilot,
+        }),
+        null,
+        2,
+      )}`,
     ];
 
   const { object } = await generateObject({
