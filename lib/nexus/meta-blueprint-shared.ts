@@ -72,3 +72,19 @@ export function stripInternalCapturedKeys(
   delete stripped[INITIAL_ROUGH_IDEA_KEY];
   return stripped;
 }
+
+/**
+ * Captured-data snapshot for next-question AI prompts.
+ * Creator co-pilot interviews must retain working title / rough idea context;
+ * ordinary respondent prompts should hide those internal keys.
+ */
+export function buildQuestionPromptCapturedData(
+  capturedData: Record<string, JsonValue>,
+  options: { includeCreatorContext: boolean },
+): Record<string, JsonValue> {
+  if (options.includeCreatorContext) {
+    return stripSessionMeta(capturedData);
+  }
+
+  return stripInternalCapturedKeys(capturedData);
+}
