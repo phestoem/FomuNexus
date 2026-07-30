@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { shouldSubmitSpeechOnEnd } from "@/lib/nexus/speech-input-end";
 import {
   getSpeechRecognitionConstructor,
   isSpeechRecognitionSupported,
@@ -19,6 +20,8 @@ export function useSpeechInput(options: UseSpeechInputOptions) {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const transcriptRef = useRef("");
   const optionsRef = useRef(options);
+  // When true, the next onend must not auto-submit (loading stop, abort, restart).
+  const ignoreNextEndRef = useRef(false);
 
   optionsRef.current = options;
 
@@ -26,12 +29,15 @@ export function useSpeechInput(options: UseSpeechInputOptions) {
     setIsSupported(isSpeechRecognitionSupported());
 
     return () => {
+      ignoreNextEndRef.current = true;
       recognitionRef.current?.abort();
       recognitionRef.current = null;
     };
   }, []);
 
   const stopListening = useCallback(() => {
+    // External callers (e.g. form `loading`/`amending`) stop capture without submitting.
+    ignoreNextEndRef.current = true;
     recognitionRef.current?.stop();
   }, []);
 
@@ -45,6 +51,7 @@ export function useSpeechInput(options: UseSpeechInputOptions) {
       return;
     }
 
+    ignoreNextEndRef.current = true;
     recognitionRef.current?.abort();
 
     const recognition = new SpeechRecognition();
@@ -52,6 +59,7 @@ export function useSpeechInput(options: UseSpeechInputOptions) {
     recognition.interimResults = true;
     recognition.lang = "en-US";
     transcriptRef.current = "";
+    ignoreNextEndRef.current = false;
 
     recognition.onresult = (event) => {
       let interimTranscript = "";
@@ -88,8 +96,16 @@ export function useSpeechInput(options: UseSpeechInputOptions) {
     recognition.onend = () => {
       setIsListening(false);
 
+      const ignoreNextEnd = ignoreNextEndRef.current;
+      ignoreNextEndRef.current = false;
+
       const finalTranscript = transcriptRef.current.trim();
-      if (finalTranscript.length > 0) {
+      if (
+        shouldSubmitSpeechOnEnd({
+          ignoreNextEnd,
+          transcript: finalTranscript,
+        })
+      ) {
         optionsRef.current.onFinalTranscript(finalTranscript);
       }
     };
@@ -107,12 +123,14 @@ export function useSpeechInput(options: UseSpeechInputOptions) {
 
   const toggleListening = useCallback(() => {
     if (isListening) {
-      stopListening();
+      // User-initiated stop: allow onend to submit the captured transcript.
+      ignoreNextEndRef.current = false;
+      recognitionRef.current?.stop();
       return;
     }
 
     startListening();
-  }, [isListening, startListening, stopListening]);
+  }, [isListening, startListening]);
 
   return {
     isListening,
