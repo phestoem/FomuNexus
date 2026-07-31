@@ -229,6 +229,7 @@ export function NewBlueprintForm() {
           {copilotSessionId ? (
             <div className={styles.copilotFormWrap}>
               <IntakeSessionForm
+                key={copilotSessionId}
                 sessionId={copilotSessionId}
                 embedded
                 creatorCopilot

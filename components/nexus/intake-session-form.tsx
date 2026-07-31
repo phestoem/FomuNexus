@@ -13,6 +13,7 @@ import {
 } from "@/lib/nexus/schemas";
 import { buildOmniPlaceholder } from "@/lib/nexus/intent-guidance";
 import { IntentGuidance } from "@/components/nexus/intent-guidance";
+import { shouldApplyIntakeResponse } from "@/lib/nexus/intake-session-client";
 import { stripInternalCapturedKeys } from "@/lib/nexus/meta-blueprint-shared";
 import {
   formatCapturedValue,
@@ -704,8 +705,38 @@ export function IntakeSessionForm({
   const [amendmentError, setAmendmentError] = useState<string | null>(null);
   const [amendmentFlash, setAmendmentFlash] = useState<string | null>(null);
   const [recentlyAmendedKeys, setRecentlyAmendedKeys] = useState<string[]>([]);
+  const [boundSessionId, setBoundSessionId] = useState(sessionId);
   const captureAnimationRef = useRef<number | null>(null);
   const amendmentHighlightRef = useRef<number | null>(null);
+  const sessionGenerationRef = useRef(0);
+
+  // Soft navigation across `/form/[sessionId]` reuses this component. Reset
+  // session-scoped UI during render so completion/amendment state cannot bind
+  // to the newly routed session id (see React "adjusting state when a prop changes").
+  if (sessionId !== boundSessionId) {
+    setBoundSessionId(sessionId);
+    sessionGenerationRef.current += 1;
+    setCurrentQuestion(null);
+    setUserInput("");
+    setCapturedData({});
+    setIsCompleted(false);
+    setError(null);
+    setSessionError(sessionId ? null : "Session ID is missing.");
+    setExtractionFlash(null);
+    setActionsExecuted([]);
+    setBlueprintId(null);
+    setBlueprintContext(null);
+    setCompiledBlueprint(null);
+    setRestarting(false);
+    setMissingFieldHints([]);
+    setCapturedHintTokens([]);
+    setAmending(false);
+    setAmendmentInput("");
+    setAmendmentError(null);
+    setAmendmentFlash(null);
+    setRecentlyAmendedKeys([]);
+    setLoading(Boolean(sessionId));
+  }
 
   useEffect(() => {
     return () => {
@@ -865,17 +896,42 @@ export function IntakeSessionForm({
     setLoading(true);
     setSessionError(null);
 
+    const requestGeneration = sessionGenerationRef.current;
+
     try {
       const response = await requestNextStep(sessionId, submittedInput);
+      if (
+        !shouldApplyIntakeResponse(
+          requestGeneration,
+          sessionGenerationRef.current,
+        )
+      ) {
+        return;
+      }
       applyResponse(response);
     } catch (submitError) {
+      if (
+        !shouldApplyIntakeResponse(
+          requestGeneration,
+          sessionGenerationRef.current,
+        )
+      ) {
+        return;
+      }
       setError(
         submitError instanceof Error
           ? submitError.message
           : "Failed to submit your answer.",
       );
     } finally {
-      setLoading(false);
+      if (
+        shouldApplyIntakeResponse(
+          requestGeneration,
+          sessionGenerationRef.current,
+        )
+      ) {
+        setLoading(false);
+      }
     }
   }
 
@@ -894,17 +950,42 @@ export function IntakeSessionForm({
     setAmendmentError(null);
     setAmendmentFlash(null);
 
+    const requestGeneration = sessionGenerationRef.current;
+
     try {
       const response = await requestNextStep(sessionId, submittedInput);
+      if (
+        !shouldApplyIntakeResponse(
+          requestGeneration,
+          sessionGenerationRef.current,
+        )
+      ) {
+        return;
+      }
       applyResponse(response);
     } catch (amendError) {
+      if (
+        !shouldApplyIntakeResponse(
+          requestGeneration,
+          sessionGenerationRef.current,
+        )
+      ) {
+        return;
+      }
       setAmendmentError(
         amendError instanceof Error
           ? amendError.message
           : "Failed to apply your correction.",
       );
     } finally {
-      setAmending(false);
+      if (
+        shouldApplyIntakeResponse(
+          requestGeneration,
+          sessionGenerationRef.current,
+        )
+      ) {
+        setAmending(false);
+      }
     }
   }
 
@@ -966,32 +1047,48 @@ export function IntakeSessionForm({
 
   useEffect(() => {
     if (!sessionId) {
-      setSessionError("Session ID is missing.");
-      setLoading(false);
       return;
     }
 
+    const requestGeneration = sessionGenerationRef.current;
     let cancelled = false;
 
     async function loadInitialQuestion() {
-      setLoading(true);
-      setSessionError(null);
-
       try {
         const response = await requestNextStep(sessionId);
-        if (!cancelled) {
-          applyResponse(response);
+        if (
+          cancelled ||
+          !shouldApplyIntakeResponse(
+            requestGeneration,
+            sessionGenerationRef.current,
+          )
+        ) {
+          return;
         }
+        applyResponse(response);
       } catch (fetchError) {
-        if (!cancelled) {
-          setSessionError(
-            fetchError instanceof Error
-              ? fetchError.message
-              : "Failed to load the intake session.",
-          );
+        if (
+          cancelled ||
+          !shouldApplyIntakeResponse(
+            requestGeneration,
+            sessionGenerationRef.current,
+          )
+        ) {
+          return;
         }
+        setSessionError(
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Failed to load the intake session.",
+        );
       } finally {
-        if (!cancelled) {
+        if (
+          !cancelled &&
+          shouldApplyIntakeResponse(
+            requestGeneration,
+            sessionGenerationRef.current,
+          )
+        ) {
           setLoading(false);
         }
       }
