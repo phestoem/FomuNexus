@@ -1,5 +1,11 @@
 import { IntakeSessionForm } from "@/components/nexus/intake-session-form";
 
-export default function FormSessionPage() {
-  return <IntakeSessionForm />;
+type FormSessionPageProps = {
+  params: Promise<{ sessionId: string }>;
+};
+
+export default async function FormSessionPage({ params }: FormSessionPageProps) {
+  const { sessionId } = await params;
+
+  return <IntakeSessionForm key={sessionId} sessionId={sessionId} />;
 }
