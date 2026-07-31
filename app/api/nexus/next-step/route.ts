@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { processCompletedSession } from "@/lib/nexus/action-router";
 import { buildBlueprintContext } from "@/lib/nexus/blueprint-context";
 import { buildMissingFieldHints } from "@/lib/nexus/intent-guidance";
+import { resolveQuestionPromptAfterInjectionAttempt } from "@/lib/nexus/next-step-orchestration";
 import { stripInternalCapturedKeys, isMetaBlueprint } from "@/lib/nexus/meta-blueprint-shared";
 import {
   extractionResultSchema,
@@ -821,12 +822,18 @@ async function generateNextStepQuestion(params: {
     prompt: promptLines.join("\n"),
   });
 
-  const questionPrompt = sanitizeUserFacingMessage(
+  const modelQuestionPrompt = sanitizeUserFacingMessage(
     object.questionPrompt?.trim() || buildFallbackQuestion(params.field),
     params.allFields,
   );
+  const blueprintFieldFallback = sanitizeUserFacingMessage(
+    buildFallbackQuestion(params.field),
+    params.allFields,
+  );
+  const injectionRequested =
+    !isCreatorCopilot && object.dynamicField !== null;
 
-  if (!isCreatorCopilot && object.dynamicField !== null) {
+  if (injectionRequested && object.dynamicField !== null) {
     const registration = registerInjectedField(params.sessionMeta, {
       fieldKey: object.dynamicField.fieldKey,
       componentType: object.dynamicField.componentType,
@@ -853,7 +860,7 @@ async function generateNextStepQuestion(params: {
             fieldKey: injectedDefinition.key,
             componentType: injectedDefinition.componentType,
             questionPrompt:
-              questionPrompt || buildFallbackQuestion(injectedDefinition),
+              modelQuestionPrompt || buildFallbackQuestion(injectedDefinition),
           },
         }),
         sessionMeta: updatedMeta,
@@ -861,6 +868,15 @@ async function generateNextStepQuestion(params: {
       };
     }
   }
+
+  // Rejected injections must not keep the follow-up wording while fieldKey
+  // still points at the original missing blueprint field.
+  const questionPrompt = resolveQuestionPromptAfterInjectionAttempt({
+    injectionRequested,
+    injectionAccepted: false,
+    modelQuestionPrompt,
+    blueprintFieldFallback,
+  });
 
   const nextStep =
     params.field.componentType === "select" && params.field.options?.length
@@ -987,6 +1003,11 @@ export async function POST(request: Request) {
         extractedData = extractionOutcome.extractedData;
         skippedFields = extractionOutcome.skippedFields;
         agentSkippedFields = extractionOutcome.agentSkippedFields;
+        // Keep the merge in memory only. Persisting here would advance the DB
+        // before question generation; a later 500 leaves the client on the old
+        // field so retries misbind the same utterance onto the next field.
+        // Completion paths below write with the COMPLETED status flip; active
+        // sessions persist after a successful next-step generation.
         capturedData = attachSessionMeta(
           stripInvalidRequiredFieldValues(
             targetSchema,
@@ -994,11 +1015,6 @@ export async function POST(request: Request) {
           ),
           sessionMeta,
         );
-
-        await prisma.formSession.update({
-          where: { id: sessionId },
-          data: { capturedData },
-        });
       }
     }
 
@@ -1069,12 +1085,13 @@ export async function POST(request: Request) {
     sessionMeta = questionResult.sessionMeta;
     capturedData = questionResult.capturedData;
 
-    if (sessionMeta.injectedFields.length > 0) {
-      await prisma.formSession.update({
-        where: { id: sessionId },
-        data: { capturedData },
-      });
-    }
+    // Persist extracted answers and any injected-field meta only after the next
+    // step was produced successfully. Completion paths above write earlier with
+    // the COMPLETED status transition.
+    await prisma.formSession.update({
+      where: { id: sessionId },
+      data: { capturedData },
+    });
 
     return NextResponse.json(
       attachIntentGuidance(
