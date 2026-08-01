@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { shouldSubmitSpeechOnEnd } from "@/lib/nexus/speech-input-end";
 import {
   getSpeechRecognitionConstructor,
   isSpeechRecognitionSupported,
@@ -19,6 +20,8 @@ export function useSpeechInput(options: UseSpeechInputOptions) {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const transcriptRef = useRef("");
   const optionsRef = useRef(options);
+  // Set when a non-aborted recognition error fires before `onend`.
+  const recognitionFailedRef = useRef(false);
 
   optionsRef.current = options;
 
@@ -52,6 +55,7 @@ export function useSpeechInput(options: UseSpeechInputOptions) {
     recognition.interimResults = true;
     recognition.lang = "en-US";
     transcriptRef.current = "";
+    recognitionFailedRef.current = false;
 
     recognition.onresult = (event) => {
       let interimTranscript = "";
@@ -75,6 +79,7 @@ export function useSpeechInput(options: UseSpeechInputOptions) {
 
     recognition.onerror = (event) => {
       if (event.error !== "aborted") {
+        recognitionFailedRef.current = true;
         optionsRef.current.onError?.(
           event.error === "not-allowed"
             ? "Microphone permission was denied."
@@ -88,8 +93,16 @@ export function useSpeechInput(options: UseSpeechInputOptions) {
     recognition.onend = () => {
       setIsListening(false);
 
+      const recognitionFailed = recognitionFailedRef.current;
+      recognitionFailedRef.current = false;
+
       const finalTranscript = transcriptRef.current.trim();
-      if (finalTranscript.length > 0) {
+      if (
+        shouldSubmitSpeechOnEnd({
+          recognitionFailed,
+          transcript: finalTranscript,
+        })
+      ) {
         optionsRef.current.onFinalTranscript(finalTranscript);
       }
     };
@@ -101,6 +114,7 @@ export function useSpeechInput(options: UseSpeechInputOptions) {
       recognition.start();
     } catch {
       setIsListening(false);
+      recognitionFailedRef.current = true;
       optionsRef.current.onError?.("Unable to start voice capture.");
     }
   }, []);
