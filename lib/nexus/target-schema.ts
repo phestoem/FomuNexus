@@ -224,15 +224,19 @@ export function isSkippedPlaceholderValue(value: unknown): boolean {
   );
 }
 
+// Match AI extraction refusals / meta-explanations only.
+// Do NOT treat ordinary respondent answers such as bare "Not applicable",
+// "Unable to determine the root cause", or similar domain text as polluted —
+// those must remain storable or required fields can never complete.
 const POLLUTED_FIELD_VALUE_PATTERNS = [
-  /^not applicable\b/i,
+  /^not applicable\b[\s\S]*\b(?:the (?:user|input)|this field|no (?:information|data|value)|not (?:provided|mentioned|available in))\b/i,
   /^the input does not\b/i,
-  /^the user(?:'s| did not)? input does not\b/i,
-  /^no relevant information\b/i,
+  /^the user(?:'s| did not)?(?:\s+input)? does not\b/i,
+  /^no relevant information\b[\s\S]*\b(?:in|from|about)\b[\s\S]*\b(?:input|message|response|user|text|answer|context)\b/i,
   /^does not mention\b/i,
-  /^could not be determined\b/i,
+  /^could not be determined\b[\s\S]*\b(?:user|input|message|context|from (?:the )?(?:provided|available))\b/i,
   /^not mentioned in\b/i,
-  /^unable to (?:find|determine|extract)\b/i,
+  /^unable to (?:find|determine|extract)\b[\s\S]*\b(?:user|input|message|field|value|information|from (?:the )?(?:provided|available))\b/i,
 ];
 
 export function isPollutedFieldValue(value: unknown): boolean {
